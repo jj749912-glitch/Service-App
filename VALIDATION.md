@@ -1,5 +1,7 @@
 # Validation — 1 October 2026
 
+- Supplied logo update: original artwork preserved byte-for-byte; app header, Android/iOS/web/Windows icon files replaced. iOS icon dimensions and opaque format verified. Flutter analysis and all 3 existing widget tests passed. Updated web and Android debug builds succeeded; browser preview visibly shows the new logo. iOS compilation still requires macOS/Xcode.
+
 - Flutter analysis: no issues.
 - Widget tests: all 3 passed (Ernakulam default, empty real-data directory, legacy local bookings ignored, missing-backend setup guidance, mobile layout).
 - Connected web build: succeeded; browser verified an empty Ernakulam directory and exactly Ernakulam/Thrissur in the location selector.

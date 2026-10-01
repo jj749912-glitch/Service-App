@@ -23,6 +23,10 @@ Before admitting customers outside your Supabase organization, configure an emai
 
 ## Implemented
 
+The app header and Android, iOS, web and Windows icons use the supplied solar/home maintenance artwork. The original is preserved at `assets/branding/app-icon.png`; the app uses its resized `logo.png`. To regenerate icon files, install Node.js and Sharp (`npm install --no-save sharp`), then run `node tools/generate-icons.cjs`. Web maskable icons include safe padding. This updates image assets only.
+
+See `BREVO_SETUP.md` for the free SMTP setup steps. Enter SMTP credentials directly in Supabase, never in the source code.
+
 - Responsive solar-first home screen with a custom solar illustration.
 - Solar cleaning, inspection and repair, plus electrical, plumbing and cleaning categories.
 - Search by name/service, city filtering, hourly rates, ratings and sorting.

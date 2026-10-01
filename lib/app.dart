@@ -221,16 +221,12 @@ class _MarketplaceState extends State<Marketplace> {
               ),
               child: Row(
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: green,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Icon(
-                      Icons.wb_sunny_rounded,
-                      color: Color(0xFFDEFF9C),
-                    ),
+                  Image.asset(
+                    'assets/branding/logo.png',
+                    width: 48,
+                    height: 48,
+                    fit: BoxFit.contain,
+                    semanticLabel: 'SolarCare logo',
                   ),
                   const SizedBox(width: 10),
                   const Text(
