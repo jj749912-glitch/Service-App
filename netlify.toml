@@ -1,6 +1,6 @@
-# Deploy the locally built Flutter web output. Netlify does not need Flutter
-# installed for a manual deployment of these already-compiled files.
+# Build the Flutter web app when Netlify deploys this GitHub repository.
 [build]
+  command = "bash tools/netlify-build.sh"
   publish = "build/web"
 
 [[redirects]]

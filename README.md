@@ -92,10 +92,12 @@ Database schema history is stored in the Supabase project's applied migrations. 
 
 The web version uses the same real accounts and data as Android/iOS. A custom domain is optional; use your site's `netlify.app` address for the initial pilot.
 
-Build locally and deploy the **contents of `build/web`**, rather than the Flutter source folder. `netlify.toml` supplies the publish directory and SPA fallback. `_redirects` and `_headers` are also included in the web output for manual uploads. Netlify's ordinary build environment does not automatically include Flutter, so the prepared compiled bundle is the initial deployment method.
+For GitHub-connected deployments, `netlify.toml` runs `bash tools/netlify-build.sh` and publishes `build/web`. Leave the base directory at the repository root and use `main` as the production branch. The script installs the verified Flutter 3.44.4 revision from the official Flutter repository and builds the release web app with the public Supabase configuration. No SMTP credentials are needed for the build. The first build downloads the Flutter tools and may take several minutes.
+
+For a manual upload, build locally and deploy the **contents of `build/web`**, rather than the Flutter source folder. `netlify.toml` supplies the publish directory and SPA fallback. `_redirects` and `_headers` are also included in the web output for manual uploads.
 
 The Netlify upload bundle is `dist/SolarCare-web-netlify.zip`. Unzip it, then upload the folder that contains `index.html` to your Netlify project. No secret server keys are included.
 
-Deployment is intentionally deferred at your request. No Netlify site has been created or published in this session.
+The repository is configured for Netlify deployment. Confirm the production deploy succeeds in your Netlify dashboard and use its assigned public URL below.
 
 After Netlify assigns the public URL, set Supabase Authentication → URL Configuration → Site URL to that address. Hosting does not provide SMTP: configure an email sender separately before public signups. For a small pilot, an existing Gmail account can use SMTP with a Google app password if eligible and 2-Step Verification is enabled. Enter that credential directly in Supabase settings, not in source code or chat.
