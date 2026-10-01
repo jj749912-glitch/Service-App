@@ -1,4 +1,5 @@
 import 'locations.dart';
+import 'worker_approval_notice.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -17,6 +18,7 @@ class _ProviderPortalState extends State<ProviderPortal> {
       bio = TextEditingController();
   String service = 'Solar cleaning', city = initialCity;
   Map<String, dynamic>? professional;
+  Map<String, dynamic>? review;
   List<Map<String, dynamic>> jobs = [];
   bool busy = true;
   String? error;
@@ -42,7 +44,8 @@ class _ProviderPortalState extends State<ProviderPortal> {
           .select()
           .eq('user_id', client.auth.currentUser!.id)
           .maybeSingle();
-      final rows = p == null
+      final decision = p == null ? null : await client.rpc('my_worker_review');
+      final rows = p == null || p['verified'] != true
           ? <Map<String, dynamic>>[]
           : await client
                 .from('bookings')
@@ -52,6 +55,9 @@ class _ProviderPortalState extends State<ProviderPortal> {
       if (mounted) {
         setState(() {
           professional = p;
+          review = decision == null
+              ? null
+              : Map<String, dynamic>.from(decision);
           jobs = rows;
           busy = false;
           error = null;
@@ -61,6 +67,9 @@ class _ProviderPortalState extends State<ProviderPortal> {
       if (mounted) {
         setState(() {
           busy = false;
+          professional = null;
+          review = null;
+          jobs = [];
           error = 'Could not load your workspace. Please retry.';
         });
       }
@@ -88,7 +97,16 @@ class _ProviderPortalState extends State<ProviderPortal> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Professional workspace')),
+    appBar: AppBar(
+      title: const Text('Professional workspace'),
+      actions: [
+        IconButton(
+          onPressed: busy ? null : load,
+          icon: const Icon(Icons.refresh),
+          tooltip: 'Refresh approval status',
+        ),
+      ],
+    ),
     body: SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Center(
@@ -238,7 +256,7 @@ class _ProviderPortalState extends State<ProviderPortal> {
                     ],
                   ),
                 ),
-              if (professional != null) ...[
+              if (!busy && error == null && professional != null) ...[
                 Text(
                   professional!['name'],
                   style: const TextStyle(
@@ -252,13 +270,9 @@ class _ProviderPortalState extends State<ProviderPortal> {
                 ),
                 const SizedBox(height: 16),
                 if (professional!['verified'] != true)
-                  const Card(
-                    child: Padding(
-                      padding: EdgeInsets.all(24),
-                      child: Text(
-                        'Application received. Verification is pending. An administrator must review your identity and qualifications before your profile is listed.',
-                      ),
-                    ),
+                  WorkerApprovalNotice(
+                    status: review?['status'] as String? ?? 'pending',
+                    note: review?['note'] as String? ?? '',
                   ),
                 if (professional!['verified'] == true) ...[
                   const Text(

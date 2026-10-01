@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'provider_portal.dart';
 import 'review_dialog.dart';
+import 'admin_portal.dart';
 
 const green = Color(0xFF176A50), ink = Color(0xFF19382E);
 const backendUrl = String.fromEnvironment('SUPABASE_URL');
@@ -40,6 +41,15 @@ class SolarCareApp extends StatelessWidget {
       ),
     ),
     home: const Marketplace(),
+    routes: {
+      '/admin': (_) => connected
+          ? const AdminPortal()
+          : const Scaffold(
+              body: Center(
+                child: Text('Connect Supabase to use the admin dashboard.'),
+              ),
+            ),
+    },
   );
 }
 
@@ -1040,12 +1050,30 @@ class _MarketplaceState extends State<Marketplace> {
     }
     final client = Supabase.instance.client;
     if (client.auth.currentUser != null) {
+      bool admin;
+      try {
+        admin = await SupabaseAdminApi(client).hasAccess();
+      } catch (_) {
+        if (mounted) notice('Could not check account access. Please retry.');
+        return;
+      }
+      if (!mounted) return;
       await showDialog(
         context: context,
         builder: (ctx) => AlertDialog(
           title: const Text('Your account'),
           content: Text(client.auth.currentUser!.email ?? 'Signed in'),
           actions: [
+            if (admin)
+              FilledButton.icon(
+                onPressed: () async {
+                  Navigator.pop(ctx);
+                  await Navigator.of(context).pushNamed('/admin');
+                  await load();
+                },
+                icon: const Icon(Icons.admin_panel_settings_outlined),
+                label: const Text('Admin dashboard'),
+              ),
             TextButton(
               onPressed: () async {
                 Navigator.pop(ctx);
@@ -1168,6 +1196,32 @@ class _MarketplaceState extends State<Marketplace> {
                         }
                         if (ctx.mounted) Navigator.pop(ctx);
                         await load();
+                        if (!mounted) return;
+                        try {
+                          if (await SupabaseAdminApi(client).hasAccess()) {
+                            if (!mounted) return;
+                            await Navigator.of(context).pushNamed('/admin');
+                          } else {
+                            final worker = await client
+                                .from('professionals')
+                                .select('id')
+                                .eq('user_id', client.auth.currentUser!.id)
+                                .maybeSingle();
+                            if (worker != null && mounted) {
+                              await Navigator.of(context).push(
+                                MaterialPageRoute<void>(
+                                  builder: (_) => const ProviderPortal(),
+                                ),
+                              );
+                            }
+                          }
+                          await load();
+                        } catch (_) {
+                          if (mounted)
+                            notice(
+                              'Signed in. Open Your account to access your workspace.',
+                            );
+                        }
                       } on AuthException catch (e) {
                         if (ctx.mounted) {
                           update(() {
