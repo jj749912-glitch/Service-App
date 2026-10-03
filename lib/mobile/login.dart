@@ -8,7 +8,8 @@ import 'design.dart';
 
 class MobileLoginScreen extends StatefulWidget {
   final AppAuthApi api;
-  const MobileLoginScreen({super.key, required this.api});
+  final bool worker;
+  const MobileLoginScreen({super.key, required this.api, this.worker = false});
   @override
   State<MobileLoginScreen> createState() => _MobileLoginScreenState();
 }
@@ -117,6 +118,7 @@ class _MobileLoginScreenState extends State<MobileLoginScreen> {
       body: SingleChildScrollView(
         child: SolarBackdrop(
           height: 360,
+          assetPackage: widget.worker ? 'solarcare' : null,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -127,13 +129,19 @@ class _MobileLoginScreenState extends State<MobileLoginScreen> {
                   25,
                   0,
                 ),
-                child: const ServeBrand(size: 32),
+                child: ServeBrand(size: 32, worker: widget.worker),
               ),
               Padding(
                 padding: const EdgeInsets.fromLTRB(25, 42, 25, 35),
                 child: PageHeading(
-                  signup ? 'A Brighter Start.' : 'Welcome Back.',
-                  subtitle: signup
+                  signup
+                      ? 'A Brighter Start.'
+                      : widget.worker
+                      ? 'Welcome Back, Pro.'
+                      : 'Welcome Back.',
+                  subtitle: widget.worker
+                      ? 'Your Skills. Your Community.\nManage your profile and service requests.'
+                      : signup
                       ? 'Create your account and find trusted\nprofessionals for your home.'
                       : 'Cleaner Homes. Brighter Tomorrows.\nSign in to start your solar journey.',
                 ),
@@ -160,9 +168,11 @@ class _MobileLoginScreenState extends State<MobileLoginScreen> {
                         ),
                       ),
                       const SizedBox(height: 7),
-                      const Text(
-                        'Local care in Ernakulam & Thrissur',
-                        style: TextStyle(color: serveMuted, fontSize: 12),
+                      Text(
+                        widget.worker
+                            ? 'Workers in Ernakulam & Thrissur need admin approval before receiving jobs.'
+                            : 'Local care in Ernakulam & Thrissur',
+                        style: const TextStyle(color: serveMuted, fontSize: 12),
                       ),
                       const SizedBox(height: 23),
                       if (signup) ...[

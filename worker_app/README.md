@@ -1,4 +1,4 @@
-# SolarCare Pro
+# SolarServe Pro
 
 Separate Android, iOS and web application for SolarCare professionals.
 

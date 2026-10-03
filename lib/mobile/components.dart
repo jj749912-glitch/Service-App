@@ -9,7 +9,13 @@ import 'customer_data.dart';
 class SolarBackdrop extends StatelessWidget {
   final Widget child;
   final double height;
-  const SolarBackdrop({super.key, required this.child, this.height = 270});
+  final String? assetPackage;
+  const SolarBackdrop({
+    super.key,
+    required this.child,
+    this.height = 270,
+    this.assetPackage,
+  });
   @override
   Widget build(BuildContext context) => Stack(
     children: [
@@ -20,9 +26,12 @@ class SolarBackdrop extends StatelessWidget {
         height: height,
         child: Image.asset(
           'assets/mobile/solar-house.png',
+          package: assetPackage,
           fit: BoxFit.cover,
           alignment: Alignment.centerRight,
           cacheWidth: 1000,
+          errorBuilder: (_, error, stack) =>
+              const ColoredBox(color: Color(0xFF006AB1)),
         ),
       ),
       Positioned(

@@ -467,4 +467,55 @@ void main() {
     }
     await t.pumpWidget(const SizedBox());
   });
+
+  testWidgets(
+    'Wide web layout keeps booking routes and dialogs in the mobile frame',
+    (t) async {
+      t.view.physicalSize = const Size(1280, 900);
+      t.view.devicePixelRatio = 1;
+      addTearDown(t.view.resetPhysicalSize);
+      addTearDown(t.view.resetDevicePixelRatio);
+      final auth = TestAuth()..userId = 'frame-test';
+      addTearDown(auth.events.close);
+      await t.pumpWidget(
+        SolarCareApp(
+          mobile: true,
+          auth: auth,
+          homeBuilder: (context) => Scaffold(
+            body: TextButton(
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => MobileSchedulePage(
+                    professional: testProfessional,
+                    api: TestCustomerApi(),
+                    city: 'Ernakulam',
+                  ),
+                ),
+              ),
+              child: const Text('Open booking'),
+            ),
+          ),
+        ),
+      );
+      await t.pumpAndSettle();
+      await t.tap(find.text('Open booking'));
+      await t.pumpAndSettle();
+      expect(t.getSize(find.byType(Scaffold).last).width, 480);
+      expect(
+        MediaQuery.sizeOf(t.element(find.byType(MobileSchedulePage))).width,
+        480,
+      );
+      await t.enterText(
+        find.byType(TextFormField).first,
+        'Unit test service address',
+      );
+      await t.ensureVisible(find.text('Confirm Schedule'));
+      await t.tap(find.text('Confirm Schedule'));
+      await t.pumpAndSettle();
+      expect(find.text('Confirm Your Schedule'), findsOneWidget);
+      expect(t.getSize(find.byType(AlertDialog)).width, lessThanOrEqualTo(480));
+      expect(t.takeException(), isNull);
+      await t.pumpWidget(const SizedBox());
+    },
+  );
 }

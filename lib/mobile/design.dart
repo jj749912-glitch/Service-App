@@ -9,9 +9,42 @@ const serveYellow = Color(0xFFFFCF27);
 const serveBackground = Color(0xFFF3F8FB);
 const mobileBrand = 'SolarServe';
 
-ThemeData solarServeTheme() => ThemeData(
+// Keep the supplied phone composition on wide browser windows. The local
+// MediaQuery also keeps dialogs and date/time controls inside that composition.
+class SolarServeFrame extends StatelessWidget {
+  final Widget child;
+  const SolarServeFrame({super.key, required this.child});
+  @override
+  Widget build(BuildContext context) => ColoredBox(
+    color: const Color(0xFFE5ECF2),
+    child: Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 480),
+        child: LayoutBuilder(
+          builder: (context, constraints) => MediaQuery(
+            data: MediaQuery.of(
+              context,
+            ).copyWith(size: Size(constraints.maxWidth, constraints.maxHeight)),
+            child: ClipRect(child: child),
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
+class SolarServeScrollBehavior extends MaterialScrollBehavior {
+  const SolarServeScrollBehavior();
+  @override
+  Set<PointerDeviceKind> get dragDevices => {
+    ...super.dragDevices,
+    PointerDeviceKind.mouse,
+  };
+}
+
+ThemeData solarServeTheme({bool worker = false}) => ThemeData(
   useMaterial3: true,
-  fontFamily: 'Poppins',
+  fontFamily: worker ? 'packages/solarcare/Poppins' : 'Poppins',
   scaffoldBackgroundColor: serveBackground,
   colorScheme: ColorScheme.fromSeed(
     seedColor: serveBlue,
@@ -58,19 +91,33 @@ ThemeData solarServeTheme() => ThemeData(
   textButtonTheme: TextButtonThemeData(
     style: TextButton.styleFrom(foregroundColor: serveBlue),
   ),
+  cardTheme: CardThemeData(
+    color: Colors.white,
+    elevation: 0,
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+  ),
   chipTheme: ChipThemeData(
     side: BorderSide.none,
     shape: const StadiumBorder(),
     backgroundColor: Colors.white,
     selectedColor: serveBlue,
-    labelStyle: const TextStyle(fontFamily: 'Poppins', fontSize: 12),
+    labelStyle: TextStyle(
+      fontFamily: worker ? 'packages/solarcare/Poppins' : 'Poppins',
+      fontSize: 12,
+    ),
   ),
 );
 
 class ServeBrand extends StatelessWidget {
   final bool dark;
+  final bool worker;
   final double size;
-  const ServeBrand({super.key, this.dark = false, this.size = 22});
+  const ServeBrand({
+    super.key,
+    this.dark = false,
+    this.worker = false,
+    this.size = 22,
+  });
   @override
   Widget build(BuildContext context) => FittedBox(
     fit: BoxFit.scaleDown,
@@ -97,6 +144,14 @@ class ServeBrand extends StatelessWidget {
                     text: 'Serve',
                     style: TextStyle(color: serveYellow),
                   ),
+                  if (worker)
+                    TextSpan(
+                      text: ' Pro',
+                      style: TextStyle(
+                        color: dark ? serveNavy : Colors.white,
+                        fontSize: size * .6,
+                      ),
+                    ),
                 ],
               ),
               style: TextStyle(

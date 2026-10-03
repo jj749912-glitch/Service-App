@@ -150,14 +150,20 @@ void main() {
         workspaceBuilder: (_) => const Scaffold(body: Text('Worker workspace')),
       ),
     );
-    expect(find.text('solarcare pro'), findsOneWidget);
-    expect(find.text('Welcome back, pro.'), findsOneWidget);
+    expect(find.text('Welcome Back, Pro.'), findsOneWidget);
     expect(find.text('Worker workspace'), findsNothing);
-    await credentials(t);
+    await t.enterText(
+      find.byType(TextFormField).at(0),
+      'worker@example.invalid',
+    );
+    await t.enterText(find.byType(TextFormField).at(1), 'test-password');
+    await t.ensureVisible(find.text('Login'));
+    await t.tap(find.text('Login'));
+    await t.pumpAndSettle();
     expect(find.text('Worker workspace'), findsOneWidget);
     api.session(null);
     await t.pumpAndSettle();
-    expect(find.text('Welcome back, pro.'), findsOneWidget);
+    expect(find.text('Welcome Back, Pro.'), findsOneWidget);
   });
   testWidgets('Mobile signup stays scrollable above the keyboard', (t) async {
     t.view.physicalSize = const Size(390, 844);

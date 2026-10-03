@@ -2,12 +2,15 @@ import 'dart:async';
 import 'locations.dart';
 import 'worker_approval_notice.dart';
 import 'provider_data.dart';
+import 'mobile/components.dart';
+import 'mobile/design.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ProviderPortal extends StatefulWidget {
   final ProviderApi? api;
-  const ProviderPortal({super.key, this.api});
+  final String? assetPackage;
+  const ProviderPortal({super.key, this.api, this.assetPackage});
   @override
   State<ProviderPortal> createState() => _ProviderPortalState();
 }
@@ -91,7 +94,13 @@ class _ProviderPortalState extends State<ProviderPortal> {
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(
-      title: const Text('Professional workspace'),
+      title: const ServeBrand(worker: true, size: 22),
+      toolbarHeight: 78,
+      flexibleSpace: SolarBackdrop(
+        assetPackage: widget.assetPackage,
+        height: 130,
+        child: const SizedBox.expand(),
+      ),
       actions: [
         IconButton(
           onPressed: busy ? null : load,
@@ -125,6 +134,20 @@ class _ProviderPortalState extends State<ProviderPortal> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              const Text(
+                'Professional Workspace',
+                style: TextStyle(
+                  color: serveNavy,
+                  fontSize: 23,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Your profile, approval and service requests.',
+                style: TextStyle(color: serveMuted),
+              ),
+              const SizedBox(height: 20),
               if (busy) const LinearProgressIndicator(),
               if (error != null) ...[
                 Text(error!, style: const TextStyle(color: Colors.red)),
@@ -323,6 +346,10 @@ class _ProviderPortalState extends State<ProviderPortal> {
                               children: [
                                 if (job['status'] == 'requested') ...[
                                   FilledButton(
+                                    style: FilledButton.styleFrom(
+                                      backgroundColor: serveYellow,
+                                      foregroundColor: serveNavy,
+                                    ),
                                     onPressed: busy
                                         ? null
                                         : () => change(job, 'accepted'),

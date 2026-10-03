@@ -22,14 +22,18 @@ class SolarCareApp extends StatelessWidget {
   const SolarCareApp({super.key, this.auth, this.homeBuilder, this.mobile});
   bool get useMobile =>
       mobile ??
-      (!kIsWeb &&
-          (defaultTargetPlatform == TargetPlatform.android ||
-              defaultTargetPlatform == TargetPlatform.iOS));
+      (kIsWeb ||
+          defaultTargetPlatform == TargetPlatform.android ||
+          defaultTargetPlatform == TargetPlatform.iOS);
   @override
   Widget build(BuildContext context) => MaterialApp(
     title: useMobile ? 'SolarServe' : 'SolarCare',
     debugShowCheckedModeBanner: false,
+    scrollBehavior: const SolarServeScrollBehavior(),
     theme: useMobile ? solarServeTheme() : solarCareTheme(),
+    builder: useMobile
+        ? (context, child) => SolarServeFrame(child: child!)
+        : null,
     home: AuthGate(
       api: auth,
       signedInBuilder:

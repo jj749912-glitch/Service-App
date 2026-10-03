@@ -1,11 +1,11 @@
 {
-    "name": "SolarCare Pro",
-    "short_name": "SolarCare Pro",
+    "name": "SolarServe Pro",
+    "short_name": "SolarServe Pro",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#176A50",
-    "theme_color": "#176A50",
-    "description": "SolarCare Pro: profiles, approvals, and service requests.",
+    "background_color": "#007CEA",
+    "theme_color": "#007CEA",
+    "description": "SolarServe Pro: profiles, approvals, and service requests.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

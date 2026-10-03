@@ -58,7 +58,7 @@ git push origin main
 
 The configured repository is `https://github.com/jj749912-glitch/Service-App`. GitHub must authenticate your Git client; do not paste access tokens into commands or commit credentials. Generated APKs/build folders and signing secrets are excluded by `.gitignore`. If a cloned repository needs an origin, use `git remote add origin https://github.com/jj749912-glitch/Service-App.git`; do not add a second origin to this checkout.
 
-Netlify builds both web apps from `main` using `tools/netlify-build.sh`. Project settings: base directory empty, build command `bash tools/netlify-build.sh`, publish directory `build/web`. In Netlify → servicefacilities → Deploys, wait for the matching Git commit to show **Published** before testing `https://servicefacilities.netlify.app/` and `https://servicefacilities.netlify.app/worker/`. A Git push alone is not proof of a successful deployment. No separate worker site is needed. Native customer screens use SolarServe; production desktop web retains its existing layout until the web designs are supplied.
+Netlify builds both web apps from `main` using `tools/netlify-build.sh`. Project settings: base directory empty, build command `bash tools/netlify-build.sh`, publish directory `build/web`. In Netlify → servicefacilities → Deploys, wait for the matching Git commit to show **Published** before testing `https://servicefacilities.netlify.app/` and `https://servicefacilities.netlify.app/worker/`. A Git push alone is not proof of a successful deployment. No separate worker site is needed. Customers use the same SolarServe design on Android, iOS and the production website. Wide browser windows center the phone composition at up to 480 pixels. The worker app uses the same blue-and-yellow theme with its own approval and job-management workspace.
 
 For a local combined web build:
 
@@ -76,7 +76,7 @@ Open `http://localhost:8080/` for customers and `http://localhost:8080/worker/` 
 
 ## SolarServe mobile customer design
 
-Android and iOS customers now use the SolarServe design: blue solar-home headers, Poppins typography, glossy service artwork, yellow booking buttons and five bottom tabs. The mobile screens cover Home, Explore, professional profiles, scheduling, booking details, tracking availability, My Jobs, Messages and Profile. The existing website and separate worker interface keep their current layouts pending their own supplied designs.
+Android and iOS customers now use the SolarServe design: blue solar-home headers, Poppins typography, glossy service artwork, yellow booking buttons and five bottom tabs. The mobile screens cover Home, Explore, professional profiles, scheduling, booking details, tracking availability, My Jobs, Messages and Profile. The production customer website now uses the same screens. The separate worker login and workspace share SolarServe styling and retain their worker controls.
 
 Explore supports booking directly from each approved professional's card. Choose the service and city, compare the recorded hourly rates, then choose Book to schedule that specific worker. View Profile & Reviews remains available before booking. A confirmed request saves to Supabase and appears in My Jobs; approval, slot and price checks still run on the server.
 
@@ -137,7 +137,7 @@ See `BREVO_SETUP.md` for the free SMTP setup steps. Enter SMTP credentials direc
 
 No dummy records are seeded. Ernakulam and Thrissur are the available locations, with Ernakulam selected initially for customers and professional applications. The directory starts empty and lists only registered, verified professionals. Every professional must have a real Supabase account; every review must reference a completed booking owned by its author. Automated database verification uses rolled-back transactions and leaves no test records.
 
-Payments, live tracking and notifications remain to be implemented. Actual identity and qualification checks must be performed by your administrator: confirm the applicant's identity, validate service qualifications, confirm service area and agreed rate, then approve the profile in the admin dashboard. An applicant cannot approve themselves. Workers use the separate SolarCare Pro app at https://servicefacilities.netlify.app/worker/ to register, apply and manage jobs. Clients cannot edit verification or stored ratings; the directory calculates ratings from completed-service reviews through an RLS-respecting view.
+Payments, live tracking and notifications remain to be implemented. Actual identity and qualification checks must be performed by your administrator: confirm the applicant's identity, validate service qualifications, confirm service area and agreed rate, then approve the profile in the admin dashboard. An applicant cannot approve themselves. Workers use the separate SolarServe Pro app at https://servicefacilities.netlify.app/worker/ to register, apply and manage jobs. Clients cannot edit verification or stored ratings; the directory calculates ratings from completed-service reviews through an RLS-respecting view.
 
 ## Admin and worker approval
 
@@ -210,7 +210,7 @@ After Netlify assigns the public URL, set Supabase Authentication → URL Config
 
 The customer app at https://servicefacilities.netlify.app/ opens on sign-in for signed-out users. New customers choose Create an account, provide their name, email and password, confirm their email, then sign in. A valid saved session keeps the user signed in; signing out removes protected screens. The customer account menu shows the signed-in account and the admin dashboard for authorized administrators.
 
-SolarCare Pro is a separate Flutter application in `worker_app/`, with its own Android/iOS identifiers and independently stored sessions. Its web entry is https://servicefacilities.netlify.app/worker/. Workers register and confirm their email, then sign in to complete a professional application. Only the admin can approve access to jobs; pending, rejected and suspended applicants see their status. Approval status refreshes automatically or through Refresh. Worker signup never grants an admin role or verification.
+SolarServe Pro is a separate Flutter application in `worker_app/`, with its own Android/iOS identifiers and independently stored sessions. Its web entry is https://servicefacilities.netlify.app/worker/. Workers register and confirm their email, then sign in to complete a professional application. Only the admin can approve access to jobs; pending, rejected and suspended applicants see their status. Approval status refreshes automatically or through Refresh. Worker signup never grants an admin role or verification.
 
 From the repository root, build the customer app normally. From `worker_app/`, run:
 
@@ -223,4 +223,4 @@ flutter build web --release --base-href=/worker/
 
 iOS source is included for both apps and targets iOS 13+. Build and sign each application on macOS with Xcode; iOS binaries have not been built on this Windows machine. Android testing packages are delivered locally as `dist/SolarCare-android-test.apk` and `dist/SolarCare-Pro-android-test.apk`.
 
-The Netlify build script builds both web applications and places SolarCare Pro under `build/web/worker/`. A manual web upload must include that folder. Both exact production URLs are allowed in Supabase authentication redirects. The customer and worker apps share real accounts and backend records; their stored login sessions stay separate. No sample users or worker profiles are created.
+The Netlify build script builds both web applications and places SolarServe Pro under `build/web/worker/`. A manual web upload must include that folder. Both exact production URLs are allowed in Supabase authentication redirects. The customer and worker apps share real accounts and backend records; their stored login sessions stay separate. No sample users or worker profiles are created.
