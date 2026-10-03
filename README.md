@@ -1,6 +1,99 @@
-# SolarCare
+# SolarServe
 
 A solar-first property maintenance marketplace built with Flutter and Supabase. Responsive customer experience for Android, iOS, web, and Windows.
+
+## Run both apps from terminals
+
+Install Flutter 3.44.4, Git, Node.js and Android Studio with Android SDK. Add Flutter's `bin` directory to PATH (this machine uses `C:\flutter\bin`). Check setup with `flutter doctor -v`; enable USB debugging on a connected Android phone and approve its computer connection. `flutter devices` lists the device IDs to use below.
+
+Customer app, terminal 1:
+
+```powershell
+Set-Location D:\Service_app\Solar-app
+flutter pub get
+flutter devices
+flutter run -d <customer-device-id>
+```
+
+Worker app, terminal 2:
+
+```powershell
+Set-Location D:\Service_app\Solar-app\worker_app
+flutter pub get
+flutter run -d <worker-device-id>
+```
+
+Replace the device placeholders with IDs from `flutter devices`; the apps have separate package identifiers and can coexist on the same phone. Use a real confirmed customer account and a separate real worker account. Worker: register → confirm email → submit service/city/hourly-rate/profile → administrator verifies and approves. Customer: choose city/service → select the approved worker → choose a future date, duration and address → confirm request. Worker: refresh workspace → Accept or Decline. Customer: My Jobs → Scheduled or Cancelled → View Details. A decline is stored as `cancelled` and shown as Cancelled in both apps. Both apps poll every 15 seconds while open; pull to refresh the customer app or use Refresh in the worker app. Open booking details and tracking-status screens also poll and offer Refresh Status. These are booking status updates, not push notifications or live technician GPS.
+
+## Build and install Android APKs
+
+From the repository root:
+
+```powershell
+flutter build apk --debug
+New-Item -ItemType Directory -Force dist
+Copy-Item build\app\outputs\flutter-apk\app-debug.apk dist\SolarServe-android-test.apk
+Set-Location worker_app
+flutter build apk --debug
+Copy-Item build\app\outputs\flutter-apk\app-debug.apk ..\dist\SolarCare-Pro-android-test.apk
+Set-Location ..
+```
+
+Transfer each APK to an Android phone, open it and allow installation from the file app when prompted. These debug builds are for testing. For release outputs, run `flutter build apk --release` in each app directory; output is `build/app/outputs/flutter-apk/app-release.apk` inside that directory. Configure your own protected release keystore/signing before distributing publicly; never commit keystores or passwords. Android App Bundle builds use `flutter build appbundle --release`. A successful build does not establish that login has been tested on your physical phone.
+
+## Upload source and update the hosted apps
+
+From the repository root, review the files, run the checks, commit your intended changes and push:
+
+```powershell
+git status
+git diff
+flutter analyze
+flutter test
+git add README.md lib test integration_test backend assets pubspec.yaml pubspec.lock android ios windows preview.cjs netlify.toml tools worker_app
+git diff --cached --stat
+git commit -m "Update SolarServe customer and worker apps"
+git push origin main
+```
+
+The configured repository is `https://github.com/jj749912-glitch/Service-App`. GitHub must authenticate your Git client; do not paste access tokens into commands or commit credentials. Generated APKs/build folders and signing secrets are excluded by `.gitignore`. If a cloned repository needs an origin, use `git remote add origin https://github.com/jj749912-glitch/Service-App.git`; do not add a second origin to this checkout.
+
+Netlify builds both web apps from `main` using `tools/netlify-build.sh`. Project settings: base directory empty, build command `bash tools/netlify-build.sh`, publish directory `build/web`. In Netlify → servicefacilities → Deploys, wait for the matching Git commit to show **Published** before testing `https://servicefacilities.netlify.app/` and `https://servicefacilities.netlify.app/worker/`. A Git push alone is not proof of a successful deployment. No separate worker site is needed. Native customer screens use SolarServe; production desktop web retains its existing layout until the web designs are supplied.
+
+For a local combined web build:
+
+```powershell
+flutter build web --release
+Set-Location worker_app
+flutter build web --release --base-href=/worker/
+Set-Location ..
+New-Item -ItemType Directory -Force build\web\worker
+Copy-Item worker_app\build\web\* build\web\worker -Recurse -Force
+node preview.cjs
+```
+
+Open `http://localhost:8080/` for customers and `http://localhost:8080/worker/` for workers. The mobile-only preview below uses port 8081 and a separate build output.
+
+## SolarServe mobile customer design
+
+Android and iOS customers now use the SolarServe design: blue solar-home headers, Poppins typography, glossy service artwork, yellow booking buttons and five bottom tabs. The mobile screens cover Home, Explore, professional profiles, scheduling, booking details, tracking availability, My Jobs, Messages and Profile. The existing website and separate worker interface keep their current layouts pending their own supplied designs.
+
+Explore supports booking directly from each approved professional's card. Choose the service and city, compare the recorded hourly rates, then choose Book to schedule that specific worker. View Profile & Reviews remains available before booking. A confirmed request saves to Supabase and appears in My Jobs; approval, slot and price checks still run on the server.
+
+All professional details come from registered profiles. Only approved professionals appear in the customer directory. Hourly rates and years of experience use the recorded profile values; ratings and review counts come from completed-booking reviews. Missing professional photos use initials. No sample people, portraits, prices, reviews, completed-job counts, distances, arrival estimates or membership benefits are inserted from the design references. The worker workspace loads only the current worker's application, approval decision and assigned bookings.
+
+Live technician GPS, chat, payments and annual care subscriptions are not implemented. Their mobile screens explain availability and never simulate activity. Explore shows the actual selected city's OpenStreetMap base map, with attribution, without invented worker markers. These community tiles are suitable for a small test; a larger launch should choose a suitable map provider. Login uses the existing email/password and email-confirmation flow; SMS OTP is not configured.
+
+The Android testing package is `dist/SolarServe-android-test.apk`. iOS uses the same Flutter implementation but still requires a Mac/Xcode build and signing. Decorative mobile artwork was generated with the built-in image tool; complete prompts are recorded in `assets/mobile/ASSET_PROMPTS.md`. Poppins is bundled with its license in `assets/fonts/OFL.txt`.
+
+For an isolated local browser preview of the mobile design, build `lib/mobile_preview.dart` to a separate directory. It retains real authentication; it is not the production web entry point:
+
+```powershell
+flutter build web -t lib/mobile_preview.dart --output=build/mobile-preview
+node preview.cjs --mobile
+```
+
+Automated mobile checks use isolated in-memory responses and never create database records. They cover empty states, city/approval filtering, recorded profile values, booking confirmation, sign-in gating, Android/iOS layout selection and larger text. Run `flutter test`; optionally add `--dart-define=CAPTURE_MOBILE_UI=true` to save empty-state visual checks locally under `dist/mobile-ui/`.
 
 ## Repository setup
 
@@ -77,7 +170,7 @@ flutter build apk --dart-define-from-file=supabase-config.json
 flutter build windows --dart-define-from-file=supabase-config.json
 ```
 
-An Android debug APK was successfully built and is provided in `dist/SolarCare-android-test.apk`. Android startup logs confirmed Flutter and Supabase initialization. Emulator automation could not complete because its Dart debugging connection closed; full device flows are not yet verified. iOS requires macOS/Xcode and has not been built here. The Android release manifest includes internet access for Supabase.
+Android startup checks confirmed Flutter and Supabase initialization. A native read-only HTTPS check reached Supabase, but emulator connectivity was intermittent and physical-phone login is not yet verified. TLS verification remains enabled. iOS requires macOS/Xcode and has not been built here. The Android release manifest includes internet access for Supabase.
 
 For iOS on a Mac:
 
@@ -96,6 +189,8 @@ flutter test integration_test/mobile_test.dart -d emulator-5554 --dart-define-fr
 ```
 
 Database schema history is stored in the Supabase project's applied migrations. Local reference SQL files are in `backend/`; the later `real-data-only.sql` removes obsolete demo columns and enforces account-backed records. Do not apply these scripts to the already-initialized project.
+
+`backend/booking-workflow-check.sql` checks customer request creation, assigned-worker visibility, acceptance, decline, customer visibility of decisions, server pricing, overlap exclusion and unrelated-account isolation. `backend/admin-access-check.sql` checks approval, suspension and admin isolation. Both execute inside a transaction and roll back all temporary records; they are verification scripts, not seed data. UI tests use isolated in-memory responses only. The live directory currently has no registered professionals, so a real two-account appointment cannot be demonstrated until a genuine worker applies and is approved.
 
 ## Netlify web deployment
 

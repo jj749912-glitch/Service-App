@@ -1,4 +1,6 @@
 import 'locations.dart';
+import 'package:flutter/foundation.dart';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -9,23 +11,40 @@ export 'app_theme.dart';
 export 'backend_config.dart';
 import 'review_dialog.dart';
 import 'admin_portal.dart';
+import 'mobile/customer_app.dart';
+import 'mobile/design.dart';
+import 'mobile/login.dart';
 
 class SolarCareApp extends StatelessWidget {
   final AppAuthApi? auth;
   final WidgetBuilder? homeBuilder;
-  const SolarCareApp({super.key, this.auth, this.homeBuilder});
+  final bool? mobile;
+  const SolarCareApp({super.key, this.auth, this.homeBuilder, this.mobile});
+  bool get useMobile =>
+      mobile ??
+      (!kIsWeb &&
+          (defaultTargetPlatform == TargetPlatform.android ||
+              defaultTargetPlatform == TargetPlatform.iOS));
   @override
   Widget build(BuildContext context) => MaterialApp(
-    title: 'SolarCare',
+    title: useMobile ? 'SolarServe' : 'SolarCare',
     debugShowCheckedModeBanner: false,
-    theme: solarCareTheme(),
+    theme: useMobile ? solarServeTheme() : solarCareTheme(),
     home: AuthGate(
       api: auth,
-      signedInBuilder: homeBuilder ?? (_) => const Marketplace(),
+      signedInBuilder:
+          homeBuilder ??
+          (_) => useMobile ? const MobileCustomerApp() : const Marketplace(),
+      signedOutBuilder: useMobile ? (api) => MobileLoginScreen(api: api) : null,
     ),
     routes: {
-      '/admin': (_) =>
-          AuthGate(api: auth, signedInBuilder: (_) => const AdminPortal()),
+      '/admin': (_) => AuthGate(
+        api: auth,
+        signedInBuilder: (_) => const AdminPortal(),
+        signedOutBuilder: useMobile
+            ? (api) => MobileLoginScreen(api: api)
+            : null,
+      ),
     },
   );
 }
@@ -97,22 +116,37 @@ class _MarketplaceState extends State<Marketplace> {
       city = initialCity;
   int tab = 0;
   bool loading = false;
+  bool refreshing = false;
+  Timer? bookingRefresh;
   @override
   void initState() {
     super.initState();
     load();
+    if (widget.useBackend && connected) {
+      bookingRefresh = Timer.periodic(const Duration(seconds: 15), (_) {
+        if (mounted && !refreshing) load(quiet: true);
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    bookingRefresh?.cancel();
+    super.dispose();
   }
 
   void notice(String text) =>
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
-  Future<void> load() async {
+  Future<void> load({bool quiet = false}) async {
     final prefs = await SharedPreferences.getInstance();
     if (!mounted) return;
     setState(() {
       saved = (prefs.getStringList('saved') ?? []).toSet();
     });
     if (widget.useBackend && connected) {
-      setState(() => loading = true);
+      if (refreshing) return;
+      refreshing = true;
+      if (!quiet) setState(() => loading = true);
       try {
         final rows = await Supabase.instance.client
             .from('professional_directory')
@@ -136,10 +170,11 @@ class _MarketplaceState extends State<Marketplace> {
           });
         }
       } catch (_) {
-        if (mounted) {
+        if (mounted && !quiet) {
           notice('Could not load live data. Check your connection and retry.');
         }
       }
+      refreshing = false;
       if (mounted) setState(() => loading = false);
     }
   }

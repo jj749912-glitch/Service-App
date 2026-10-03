@@ -1,17 +1,19 @@
 import 'dart:async';
 import 'locations.dart';
 import 'worker_approval_notice.dart';
+import 'provider_data.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ProviderPortal extends StatefulWidget {
-  const ProviderPortal({super.key});
+  final ProviderApi? api;
+  const ProviderPortal({super.key, this.api});
   @override
   State<ProviderPortal> createState() => _ProviderPortalState();
 }
 
 class _ProviderPortalState extends State<ProviderPortal> {
-  final client = Supabase.instance.client;
+  late final ProviderApi api;
   final form = GlobalKey<FormState>();
   final name = TextEditingController(),
       rate = TextEditingController(),
@@ -27,10 +29,10 @@ class _ProviderPortalState extends State<ProviderPortal> {
   @override
   void initState() {
     super.initState();
-    name.text =
-        client.auth.currentUser?.userMetadata?['full_name'] as String? ?? '';
+    api = widget.api ?? SupabaseProviderApi(Supabase.instance.client);
+    name.text = api.name;
     load();
-    approvalRefresh = Timer.periodic(const Duration(seconds: 30), (_) {
+    approvalRefresh = Timer.periodic(const Duration(seconds: 15), (_) {
       if (!busy && mounted) load();
     });
   }
@@ -47,26 +49,12 @@ class _ProviderPortalState extends State<ProviderPortal> {
 
   Future<void> load() async {
     try {
-      final p = await client
-          .from('professionals')
-          .select()
-          .eq('user_id', client.auth.currentUser!.id)
-          .maybeSingle();
-      final decision = p == null ? null : await client.rpc('my_worker_review');
-      final rows = p == null || p['verified'] != true
-          ? <Map<String, dynamic>>[]
-          : await client
-                .from('bookings')
-                .select()
-                .eq('professional_id', p['id'])
-                .order('starts_at');
+      final snapshot = await api.load();
       if (mounted) {
         setState(() {
-          professional = p;
-          review = decision == null
-              ? null
-              : Map<String, dynamic>.from(decision);
-          jobs = rows;
+          professional = snapshot.professional;
+          review = snapshot.review;
+          jobs = snapshot.jobs;
           busy = false;
           error = null;
         });
@@ -87,10 +75,7 @@ class _ProviderPortalState extends State<ProviderPortal> {
   Future<void> change(Map<String, dynamic> job, String status) async {
     setState(() => busy = true);
     try {
-      await client
-          .from('bookings')
-          .update({'status': status})
-          .eq('id', job['id']);
+      await api.change(job['id'] as String, status);
       await load();
     } catch (_) {
       if (mounted) {
@@ -118,7 +103,7 @@ class _ProviderPortalState extends State<ProviderPortal> {
           icon: const Icon(Icons.logout),
           onPressed: () async {
             try {
-              await client.auth.signOut(scope: SignOutScope.local);
+              await api.signOut();
             } catch (_) {
               if (context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -256,8 +241,7 @@ class _ProviderPortalState extends State<ProviderPortal> {
                           if (!form.currentState!.validate()) return;
                           setState(() => busy = true);
                           try {
-                            await client.from('professionals').insert({
-                              'user_id': client.auth.currentUser!.id,
+                            await api.apply({
                               'name': name.text.trim(),
                               'service': service,
                               'city': city,

@@ -10,13 +10,15 @@ void main() {
     (tester) async {
       await app.main();
       await tester.pumpAndSettle(const Duration(seconds: 1));
-      expect(find.text('Welcome home.'), findsOneWidget);
+      expect(find.text('Welcome Back.'), findsOneWidget);
       expect(find.byType(NavigationBar), findsNothing);
       expect(find.text('View profile'), findsNothing);
-      await tester.ensureVisible(find.text('New here? Create an account'));
-      await tester.tap(find.text('New here? Create an account'));
+      await tester.ensureVisible(
+        find.text('New to SolarServe? Create an account'),
+      );
+      await tester.tap(find.text('New to SolarServe? Create an account'));
       await tester.pumpAndSettle();
-      expect(find.text('Create your account'), findsOneWidget);
+      expect(find.text('Create Your Account'), findsOneWidget);
       expect(find.text('Full name'), findsOneWidget);
       expect(find.text('Email'), findsOneWidget);
       expect(tester.takeException(), isNull);

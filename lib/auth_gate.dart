@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'backend_config.dart';
 import 'app_theme.dart';
+import 'auth_errors.dart';
 
 abstract class AppAuthApi {
   String? get userId;
@@ -58,11 +59,13 @@ class AuthGate extends StatefulWidget {
   final AppAuthApi? api;
   final bool worker;
   final WidgetBuilder signedInBuilder;
+  final Widget Function(AppAuthApi)? signedOutBuilder;
   const AuthGate({
     super.key,
     this.api,
     this.worker = false,
     required this.signedInBuilder,
+    this.signedOutBuilder,
   });
   @override
   State<AuthGate> createState() => _AuthGateState();
@@ -104,7 +107,8 @@ class _AuthGateState extends State<AuthGate> {
 
   @override
   Widget build(BuildContext context) => userId == null
-      ? LoginScreen(api: api, worker: widget.worker)
+      ? widget.signedOutBuilder?.call(api) ??
+            LoginScreen(api: api, worker: widget.worker)
       : KeyedSubtree(
           key: ValueKey(userId),
           child: widget.signedInBuilder(context),
@@ -171,7 +175,7 @@ class _LoginScreenState extends State<LoginScreen> {
     } on AuthException catch (e) {
       if (mounted) {
         setState(() {
-          error = e.message;
+          error = authErrorMessage(e);
           confirmation = e.code == 'email_not_confirmed';
         });
       }
@@ -205,7 +209,7 @@ class _LoginScreenState extends State<LoginScreen> {
         );
       }
     } on AuthException catch (e) {
-      if (mounted) setState(() => error = e.message);
+      if (mounted) setState(() => error = authErrorMessage(e));
     } catch (_) {
       if (mounted) {
         setState(() => error = 'Could not resend. Please try again.');

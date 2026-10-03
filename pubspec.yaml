@@ -36,6 +36,8 @@ dependencies:
   cupertino_icons: ^1.0.8
   supabase_flutter: 2.18.0
   shared_preferences: 2.5.5
+  flutter_map: 8.3.2
+  latlong2: 0.9.1
 
 dev_dependencies:
   integration_test:
@@ -62,6 +64,18 @@ flutter:
   uses-material-design: true
   assets:
     - assets/branding/logo.png
+    - assets/mobile/
+  fonts:
+    - family: Poppins
+      fonts:
+        - asset: assets/fonts/Poppins-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/Poppins-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Poppins-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Poppins-Bold.ttf
+          weight: 700
 
   # To add assets to your application, add an assets section, like this:
   # assets:

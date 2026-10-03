@@ -45,6 +45,7 @@ void main() {
   tearDown(() => api.events.close());
   Widget customer() => SolarCareApp(
     auth: api,
+    mobile: false,
     homeBuilder: (_) => const Scaffold(body: Text('Customer workspace')),
   );
   Future<void> credentials(WidgetTester t) async {
