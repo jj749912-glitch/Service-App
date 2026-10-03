@@ -673,11 +673,12 @@ class _AdminActionDialogState extends State<AdminActionDialog> {
                     );
                     if (context.mounted) Navigator.pop(context);
                   } catch (e) {
-                    if (mounted)
+                    if (mounted) {
                       setState(() {
                         busy = false;
                         error = adminError(e);
                       });
+                    }
                   }
                 },
           child: Text(busy ? 'Saving…' : widget.confirmLabel),
@@ -868,11 +869,12 @@ class _WorkerEditDialogState extends State<WorkerEditDialog> {
                     }, note.text.trim());
                     if (context.mounted) Navigator.pop(context);
                   } catch (e) {
-                    if (mounted)
+                    if (mounted) {
                       setState(() {
                         busy = false;
                         error = adminError(e);
                       });
+                    }
                   }
                 },
           child: Text(busy ? 'Saving…' : 'Save profile'),

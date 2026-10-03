@@ -24,9 +24,14 @@ do $$ begin
 end $$;
 insert into public.professionals(id,user_id,name,service,city,hourly_rate,years,bio)
   values(current_setting('test.professional_id')::uuid,auth.uid(),'Transaction worker','Solar cleaning','Ernakulam',500,3,'Only used inside a rolled back verification transaction.');
-do $$ begin
+do $$ declare changed integer; begin
   if public.my_worker_review()->>'status'<>'pending' then raise exception 'FAIL: new worker not pending'; end if;
-  begin update public.professionals set verified=true where user_id=auth.uid(); raise exception 'FAIL: worker updated verification'; exception when insufficient_privilege then null; end;
+  begin
+    update public.professionals set verified=true where user_id=auth.uid();
+    get diagnostics changed=row_count;
+    if changed<>0 then raise exception 'FAIL: worker updated verification'; end if;
+  exception when insufficient_privilege then null;
+  end;
 end $$;
 reset role;
 select set_config('request.jwt.claims',current_setting('test.admin_claims'),true);

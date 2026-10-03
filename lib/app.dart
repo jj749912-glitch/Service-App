@@ -1217,10 +1217,11 @@ class _MarketplaceState extends State<Marketplace> {
                           }
                           await load();
                         } catch (_) {
-                          if (mounted)
+                          if (mounted) {
                             notice(
                               'Signed in. Open Your account to access your workspace.',
                             );
+                          }
                         }
                       } on AuthException catch (e) {
                         if (ctx.mounted) {

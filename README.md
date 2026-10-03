@@ -36,6 +36,7 @@ See `BREVO_SETUP.md` for the free SMTP setup steps. Enter SMTP credentials direc
 - Email sign-up, sign-in, persistent Supabase sessions and sign-out.
 - My bookings with request cancellation.
 - Professional applications with administrator-controlled verification, and a worker workspace to accept/decline requests and complete services after their scheduled end.
+- Protected admin dashboard for reviewing, approving, rejecting, editing and suspending workers; viewing users and bookings; cancelling active bookings with a reason; and reviewing an audit log.
 - Server-calculated prices, future-date validation and overlapping-slot exclusion.
 - Row-level security: public directory/reviews; private customer/provider booking access. Customers can only cancel their own pending requests.
 
@@ -43,7 +44,15 @@ See `BREVO_SETUP.md` for the free SMTP setup steps. Enter SMTP credentials direc
 
 No dummy records are seeded. Ernakulam and Thrissur are the available locations, with Ernakulam selected initially for customers and professional applications. The directory starts empty and lists only registered, verified professionals. Every professional must have a real Supabase account; every review must reference a completed booking owned by its author. Automated database verification uses rolled-back transactions and leaves no test records.
 
-Payments, live tracking, notifications and an admin console remain to be implemented. Actual identity and qualification checks must be performed by your administrator: confirm the applicant's identity, validate service qualifications, confirm service area and agreed rate, then approve the profile in Supabase. An applicant cannot approve themselves. Use the account menu → Professional workspace to apply or manage jobs. Clients cannot edit verification or stored ratings; the directory calculates ratings from completed-service reviews through an RLS-respecting view.
+Payments, live tracking and notifications remain to be implemented. Actual identity and qualification checks must be performed by your administrator: confirm the applicant's identity, validate service qualifications, confirm service area and agreed rate, then approve the profile in the admin dashboard. An applicant cannot approve themselves. Use the account menu → Professional workspace to apply or manage jobs. Clients cannot edit verification or stored ratings; the directory calculates ratings from completed-service reviews through an RLS-respecting view.
+
+## Admin and worker approval
+
+Sign in with an owner-provisioned admin account. The app opens the admin dashboard after sign-in; existing sessions can use Your account → Admin dashboard. The web route is `https://servicefacilities.netlify.app/#/admin`, which checks authorization before reading data.
+
+Workers create and confirm a real account, then submit their profile in Professional workspace. Approval is required once. Pending and rejected workers cannot receive jobs. Suspending an approved worker immediately removes their public listing and blocks reading or updating assigned jobs, including requests made with an existing access token. Existing bookings remain active for the administrator to review or cancel. Re-approval restores worker access. Worker decisions require a reason; approval also requires confirmation of identity, qualifications, service area and rate. Editing profiles does not rewrite existing booking prices.
+
+Admin membership is stored in `private.app_admins`, never in user-editable metadata or the client. Only the project owner can provision or revoke membership through a trusted database connection. Use a confirmed account, look up its ID on the server, and insert that ID into the private membership table. The frontend exposes no membership-grant API and contains no service-role key. Membership and the auth session are checked on every admin request. Private worker reviews and audit entries have no direct client table privileges. Backend reference: `backend/admin-access.sql`. Regression checks: `backend/admin-access-check.sql` (entire transaction rolls back).
 
 ## Free-tier testing
 
@@ -98,6 +107,6 @@ For a manual upload, build locally and deploy the **contents of `build/web`**, r
 
 The Netlify upload bundle is `dist/SolarCare-web-netlify.zip`. Unzip it, then upload the folder that contains `index.html` to your Netlify project. No secret server keys are included.
 
-The repository is configured for Netlify deployment. Confirm the production deploy succeeds in your Netlify dashboard and use its assigned public URL below.
+The public website is https://servicefacilities.netlify.app/. Supabase's Site URL and exact production redirect URL are configured to this address. GitHub pushes to `main` trigger Netlify builds.
 
 After Netlify assigns the public URL, set Supabase Authentication → URL Configuration → Site URL to that address. Hosting does not provide SMTP: configure an email sender separately before public signups. For a small pilot, an existing Gmail account can use SMTP with a Google app password if eligible and 2-Step Verification is enabled. Enter that credential directly in Supabase settings, not in source code or chat.
