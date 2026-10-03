@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'locations.dart';
 import 'worker_approval_notice.dart';
 import 'package:flutter/material.dart';
@@ -22,14 +23,21 @@ class _ProviderPortalState extends State<ProviderPortal> {
   List<Map<String, dynamic>> jobs = [];
   bool busy = true;
   String? error;
+  Timer? approvalRefresh;
   @override
   void initState() {
     super.initState();
+    name.text =
+        client.auth.currentUser?.userMetadata?['full_name'] as String? ?? '';
     load();
+    approvalRefresh = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (!busy && mounted) load();
+    });
   }
 
   @override
   void dispose() {
+    approvalRefresh?.cancel();
     name.dispose();
     rate.dispose();
     years.dispose();
@@ -104,6 +112,23 @@ class _ProviderPortalState extends State<ProviderPortal> {
           onPressed: busy ? null : load,
           icon: const Icon(Icons.refresh),
           tooltip: 'Refresh approval status',
+        ),
+        IconButton(
+          tooltip: 'Sign out',
+          icon: const Icon(Icons.logout),
+          onPressed: () async {
+            try {
+              await client.auth.signOut(scope: SignOutScope.local);
+            } catch (_) {
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Could not sign out. Please retry.'),
+                  ),
+                );
+              }
+            }
+          },
         ),
       ],
     ),

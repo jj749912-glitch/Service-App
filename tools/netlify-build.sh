@@ -27,3 +27,13 @@ fi
 
 test -f build/web/index.html
 test -f build/web/assets/assets/branding/logo.png
+
+cd worker_app
+"$solarcare_flutter_sdk/bin/flutter" pub get
+"$solarcare_flutter_sdk/bin/flutter" build web --release --no-wasm-dry-run \
+  --base-href=/worker/ --dart-define-from-file=../supabase-config.json
+cd "$solarcare_root"
+mkdir -p build/web/worker
+cp -a worker_app/build/web/. build/web/worker/
+test -f build/web/worker/index.html
+test -f build/web/worker/assets/assets/branding/logo.png

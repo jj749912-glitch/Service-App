@@ -4,6 +4,16 @@
   publish = "build/web"
 
 [[redirects]]
+  from = "/worker"
+  to = "/worker/"
+  status = 301
+
+[[redirects]]
+  from = "/worker/*"
+  to = "/worker/index.html"
+  status = 200
+
+[[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
@@ -17,5 +27,17 @@
 
 [[headers]]
   for = "/flutter_bootstrap.js"
+  [headers.values]
+    Cache-Control = "no-cache"
+
+[[headers]]
+  for = "/worker/index.html"
+  [headers.values]
+    Cache-Control = "no-cache"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+
+[[headers]]
+  for = "/worker/flutter_bootstrap.js"
   [headers.values]
     Cache-Control = "no-cache"

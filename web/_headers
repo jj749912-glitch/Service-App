@@ -4,3 +4,9 @@
   Referrer-Policy: strict-origin-when-cross-origin
 /flutter_bootstrap.js
   Cache-Control: no-cache
+
+/worker/index.html
+  Cache-Control: no-cache
+  X-Content-Type-Options: nosniff
+/worker/flutter_bootstrap.js
+  Cache-Control: no-cache

@@ -2,53 +2,30 @@ import 'locations.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'provider_portal.dart';
+import 'auth_gate.dart';
+import 'app_theme.dart';
+import 'backend_config.dart';
+export 'app_theme.dart';
+export 'backend_config.dart';
 import 'review_dialog.dart';
 import 'admin_portal.dart';
 
-const green = Color(0xFF176A50), ink = Color(0xFF19382E);
-const backendUrl = String.fromEnvironment('SUPABASE_URL');
-const backendKey = String.fromEnvironment('SUPABASE_KEY');
-bool get connected => backendUrl.isNotEmpty && backendKey.isNotEmpty;
-
 class SolarCareApp extends StatelessWidget {
-  const SolarCareApp({super.key});
+  final AppAuthApi? auth;
+  final WidgetBuilder? homeBuilder;
+  const SolarCareApp({super.key, this.auth, this.homeBuilder});
   @override
   Widget build(BuildContext context) => MaterialApp(
     title: 'SolarCare',
     debugShowCheckedModeBanner: false,
-    theme: ThemeData(
-      useMaterial3: true,
-      colorScheme: ColorScheme.fromSeed(seedColor: green),
-      scaffoldBackgroundColor: const Color(0xFFF8FAF6),
-      fontFamily: 'Arial',
-      inputDecorationTheme: InputDecorationTheme(
-        filled: true,
-        fillColor: Colors.white,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: Color(0xFFDDE6DA)),
-        ),
-      ),
-      filledButtonTheme: FilledButtonThemeData(
-        style: FilledButton.styleFrom(
-          backgroundColor: green,
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-        ),
-      ),
+    theme: solarCareTheme(),
+    home: AuthGate(
+      api: auth,
+      signedInBuilder: homeBuilder ?? (_) => const Marketplace(),
     ),
-    home: const Marketplace(),
     routes: {
-      '/admin': (_) => connected
-          ? const AdminPortal()
-          : const Scaffold(
-              body: Center(
-                child: Text('Connect Supabase to use the admin dashboard.'),
-              ),
-            ),
+      '/admin': (_) =>
+          AuthGate(api: auth, signedInBuilder: (_) => const AdminPortal()),
     },
   );
 }
@@ -104,7 +81,8 @@ const categoryIcons = [
 ];
 
 class Marketplace extends StatefulWidget {
-  const Marketplace({super.key});
+  final bool useBackend;
+  const Marketplace({super.key, this.useBackend = true});
   @override
   State<Marketplace> createState() => _MarketplaceState();
 }
@@ -133,7 +111,7 @@ class _MarketplaceState extends State<Marketplace> {
     setState(() {
       saved = (prefs.getStringList('saved') ?? []).toSet();
     });
-    if (connected) {
+    if (widget.useBackend && connected) {
       setState(() => loading = true);
       try {
         final rows = await Supabase.instance.client
@@ -705,7 +683,7 @@ class _MarketplaceState extends State<Marketplace> {
   );
   Future<void> profile(Professional p) async {
     List<Map<String, dynamic>> reviews = [];
-    if (connected) {
+    if (widget.useBackend && connected) {
       try {
         reviews = await Supabase.instance.client
             .from('reviews')
@@ -1044,216 +1022,51 @@ class _MarketplaceState extends State<Marketplace> {
   }
 
   Future<void> account() async {
-    if (!connected) {
-      notice('Connect Supabase to create an account and book services.');
+    final client = Supabase.instance.client;
+    final user = client.auth.currentUser;
+    if (user == null) return;
+    bool admin;
+    try {
+      admin = await SupabaseAdminApi(client).hasAccess();
+    } catch (_) {
+      if (mounted) notice('Could not check account access. Please retry.');
       return;
     }
-    final client = Supabase.instance.client;
-    if (client.auth.currentUser != null) {
-      bool admin;
-      try {
-        admin = await SupabaseAdminApi(client).hasAccess();
-      } catch (_) {
-        if (mounted) notice('Could not check account access. Please retry.');
-        return;
-      }
-      if (!mounted) return;
-      await showDialog(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Text('Your account'),
-          content: Text(client.auth.currentUser!.email ?? 'Signed in'),
-          actions: [
-            if (admin)
-              FilledButton.icon(
-                onPressed: () async {
-                  Navigator.pop(ctx);
-                  await Navigator.of(context).pushNamed('/admin');
-                  await load();
-                },
-                icon: const Icon(Icons.admin_panel_settings_outlined),
-                label: const Text('Admin dashboard'),
-              ),
-            TextButton(
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Your account'),
+        content: Text(user.email ?? 'Signed in'),
+        actions: [
+          if (admin)
+            FilledButton.icon(
               onPressed: () async {
                 Navigator.pop(ctx);
-                await Navigator.of(context).push(
-                  MaterialPageRoute<void>(
-                    builder: (_) => const ProviderPortal(),
-                  ),
-                );
-                await load();
+                await Navigator.of(context).pushNamed('/admin');
+                if (mounted) await load();
               },
-              child: const Text('Professional workspace'),
+              icon: const Icon(Icons.admin_panel_settings_outlined),
+              label: const Text('Admin dashboard'),
             ),
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Close'),
-            ),
-            TextButton(
-              onPressed: () async {
-                await client.auth.signOut();
-                if (ctx.mounted) Navigator.pop(ctx);
-                await load();
-              },
-              child: const Text('Sign out'),
-            ),
-          ],
-        ),
-      );
-      return;
-    }
-    final email = TextEditingController(), password = TextEditingController();
-    bool signup = false, busy = false;
-    String? error;
-    await showDialog(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, update) => AlertDialog(
-          title: Text(signup ? 'Welcome to SolarCare' : 'Welcome back'),
-          content: SizedBox(
-            width: 360,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                TextField(
-                  controller: email,
-                  keyboardType: TextInputType.emailAddress,
-                  decoration: const InputDecoration(labelText: 'Email'),
-                ),
-                const SizedBox(height: 14),
-                TextField(
-                  controller: password,
-                  obscureText: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Password (8+ characters)',
-                  ),
-                ),
-                if (error != null)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 12),
-                    child: Text(
-                      error!,
-                      style: const TextStyle(color: Colors.red),
-                    ),
-                  ),
-                TextButton(
-                  onPressed: busy
-                      ? null
-                      : () => update(() {
-                          signup = !signup;
-                          error = null;
-                        }),
-                  child: Text(
-                    signup
-                        ? 'Already have an account? Sign in'
-                        : 'New here? Create an account',
-                  ),
-                ),
-              ],
-            ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Close'),
           ),
-          actions: [
-            TextButton(
-              onPressed: busy ? null : () => Navigator.pop(ctx),
-              child: const Text('Close'),
-            ),
-            FilledButton(
-              onPressed: busy
-                  ? null
-                  : () async {
-                      if (!email.text.contains('@') ||
-                          password.text.length < 8) {
-                        update(
-                          () => error =
-                              'Enter a valid email and a password of at least 8 characters.',
-                        );
-                        return;
-                      }
-                      update(() => busy = true);
-                      try {
-                        if (signup) {
-                          final result = await client.auth.signUp(
-                            email: email.text.trim(),
-                            password: password.text,
-                          );
-                          if (result.session == null) {
-                            if (ctx.mounted) {
-                              update(() {
-                                error =
-                                    'Check your email to confirm your account, then sign in.';
-                                busy = false;
-                                signup = false;
-                              });
-                            }
-                            return;
-                          }
-                        } else {
-                          await client.auth.signInWithPassword(
-                            email: email.text.trim(),
-                            password: password.text,
-                          );
-                        }
-                        if (ctx.mounted) Navigator.pop(ctx);
-                        await load();
-                        if (!mounted) return;
-                        try {
-                          if (await SupabaseAdminApi(client).hasAccess()) {
-                            if (!mounted) return;
-                            await Navigator.of(context).pushNamed('/admin');
-                          } else {
-                            final worker = await client
-                                .from('professionals')
-                                .select('id')
-                                .eq('user_id', client.auth.currentUser!.id)
-                                .maybeSingle();
-                            if (worker != null && mounted) {
-                              await Navigator.of(context).push(
-                                MaterialPageRoute<void>(
-                                  builder: (_) => const ProviderPortal(),
-                                ),
-                              );
-                            }
-                          }
-                          await load();
-                        } catch (_) {
-                          if (mounted) {
-                            notice(
-                              'Signed in. Open Your account to access your workspace.',
-                            );
-                          }
-                        }
-                      } on AuthException catch (e) {
-                        if (ctx.mounted) {
-                          update(() {
-                            error = e.message;
-                            busy = false;
-                          });
-                        }
-                      } catch (_) {
-                        if (ctx.mounted) {
-                          update(() {
-                            error = 'Connection failed. Please try again.';
-                            busy = false;
-                          });
-                        }
-                      }
-                    },
-              child: Text(
-                busy
-                    ? 'Please wait…'
-                    : signup
-                    ? 'Create account'
-                    : 'Sign in',
-              ),
-            ),
-          ],
-        ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              try {
+                await client.auth.signOut(scope: SignOutScope.local);
+              } catch (_) {
+                if (mounted) notice('Could not sign out. Please retry.');
+              }
+            },
+            child: const Text('Sign out'),
+          ),
+        ],
       ),
     );
-    await Future<void>.delayed(const Duration(milliseconds: 400));
-    email.dispose();
-    password.dispose();
   }
 }
 

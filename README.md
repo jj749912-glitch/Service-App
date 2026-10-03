@@ -17,7 +17,7 @@ flutter run -d chrome --dart-define-from-file=supabase-config.json
 
 The supplied config uses only a public Supabase publishable key. It connects to the `solarcare-test` project in Mumbai. Never put a secret or service-role key in the app.
 
-The app uses real Supabase data only. Without cloud configuration it shows setup guidance and an empty directory; it never creates simulated accounts, profiles, reviews or bookings. Sign-up requires confirming your email before signing in. Favourites are stored locally, while bookings and reviews are stored only in Supabase.
+The app uses real Supabase data only. The public connection settings are included by default so regular mobile builds open a working login screen; it never creates simulated accounts, profiles, reviews or bookings. Sign-up requires confirming your email before signing in. Favourites are stored locally, while bookings and reviews are stored only in Supabase.
 
 Before admitting customers outside your Supabase organization, configure an email provider in Authentication → Email → SMTP. Supabase's built-in sender only delivers to organization team addresses. Keep email confirmation enabled and set the production Site URL in Auth URL Configuration. SMTP credentials belong in Supabase settings, never in this Flutter app. See https://supabase.com/docs/guides/auth/auth-smtp.
 
@@ -44,11 +44,11 @@ See `BREVO_SETUP.md` for the free SMTP setup steps. Enter SMTP credentials direc
 
 No dummy records are seeded. Ernakulam and Thrissur are the available locations, with Ernakulam selected initially for customers and professional applications. The directory starts empty and lists only registered, verified professionals. Every professional must have a real Supabase account; every review must reference a completed booking owned by its author. Automated database verification uses rolled-back transactions and leaves no test records.
 
-Payments, live tracking and notifications remain to be implemented. Actual identity and qualification checks must be performed by your administrator: confirm the applicant's identity, validate service qualifications, confirm service area and agreed rate, then approve the profile in the admin dashboard. An applicant cannot approve themselves. Use the account menu → Professional workspace to apply or manage jobs. Clients cannot edit verification or stored ratings; the directory calculates ratings from completed-service reviews through an RLS-respecting view.
+Payments, live tracking and notifications remain to be implemented. Actual identity and qualification checks must be performed by your administrator: confirm the applicant's identity, validate service qualifications, confirm service area and agreed rate, then approve the profile in the admin dashboard. An applicant cannot approve themselves. Workers use the separate SolarCare Pro app at https://servicefacilities.netlify.app/worker/ to register, apply and manage jobs. Clients cannot edit verification or stored ratings; the directory calculates ratings from completed-service reviews through an RLS-respecting view.
 
 ## Admin and worker approval
 
-Sign in with an owner-provisioned admin account. The app opens the admin dashboard after sign-in; existing sessions can use Your account → Admin dashboard. The web route is `https://servicefacilities.netlify.app/#/admin`, which checks authorization before reading data.
+Sign in with an owner-provisioned admin account. After sign-in, administrators use Your account → Admin dashboard. The web route is `https://servicefacilities.netlify.app/#/admin`, which checks authorization before reading data.
 
 Workers create and confirm a real account, then submit their profile in Professional workspace. Approval is required once. Pending and rejected workers cannot receive jobs. Suspending an approved worker immediately removes their public listing and blocks reading or updating assigned jobs, including requests made with an existing access token. Existing bookings remain active for the administrator to review or cancel. Re-approval restores worker access. Worker decisions require a reason; approval also requires confirmation of identity, qualifications, service area and rate. Editing profiles does not rewrite existing booking prices.
 
@@ -110,3 +110,22 @@ The Netlify upload bundle is `dist/SolarCare-web-netlify.zip`. Unzip it, then up
 The public website is https://servicefacilities.netlify.app/. Supabase's Site URL and exact production redirect URL are configured to this address. GitHub pushes to `main` trigger Netlify builds.
 
 After Netlify assigns the public URL, set Supabase Authentication → URL Configuration → Site URL to that address. Hosting does not provide SMTP: configure an email sender separately before public signups. For a small pilot, an existing Gmail account can use SMTP with a Google app password if eligible and 2-Step Verification is enabled. Enter that credential directly in Supabase settings, not in source code or chat.
+
+## Customer login and separate worker app
+
+The customer app at https://servicefacilities.netlify.app/ opens on sign-in for signed-out users. New customers choose Create an account, provide their name, email and password, confirm their email, then sign in. A valid saved session keeps the user signed in; signing out removes protected screens. The customer account menu shows the signed-in account and the admin dashboard for authorized administrators.
+
+SolarCare Pro is a separate Flutter application in `worker_app/`, with its own Android/iOS identifiers and independently stored sessions. Its web entry is https://servicefacilities.netlify.app/worker/. Workers register and confirm their email, then sign in to complete a professional application. Only the admin can approve access to jobs; pending, rejected and suspended applicants see their status. Approval status refreshes automatically or through Refresh. Worker signup never grants an admin role or verification.
+
+From the repository root, build the customer app normally. From `worker_app/`, run:
+
+```powershell
+flutter pub get
+flutter run
+flutter build apk --debug
+flutter build web --release --base-href=/worker/
+```
+
+iOS source is included for both apps and targets iOS 13+. Build and sign each application on macOS with Xcode; iOS binaries have not been built on this Windows machine. Android testing packages are delivered locally as `dist/SolarCare-android-test.apk` and `dist/SolarCare-Pro-android-test.apk`.
+
+The Netlify build script builds both web applications and places SolarCare Pro under `build/web/worker/`. A manual web upload must include that folder. Both exact production URLs are allowed in Supabase authentication redirects. The customer and worker apps share real accounts and backend records; their stored login sessions stay separate. No sample users or worker profiles are created.
