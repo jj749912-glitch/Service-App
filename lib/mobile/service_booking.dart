@@ -355,7 +355,7 @@ class _MultiServiceSchedulePageState extends State<MultiServiceSchedulePage> {
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     child: Text(
                       error!,
-                      style: const TextStyle(color: Colors.red),
+                      style: const TextStyle(color: serveError),
                     ),
                   ),
                 const SizedBox(height: 18),

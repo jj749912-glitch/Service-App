@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../tracking.dart';
+import 'design.dart';
 
 bool appointmentDayContactAllowed(Map<String, dynamic> booking, DateTime now) {
   if (!['accepted', 'completed'].contains(booking['status'])) return false;
@@ -115,7 +116,7 @@ class _BookingContactState extends State<BookingContact> {
             ),
           ),
         if (error != null)
-          Text(error!, style: const TextStyle(color: Colors.red)),
+          Text(error!, style: const TextStyle(color: serveError)),
       ],
     );
   }

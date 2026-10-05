@@ -6,6 +6,13 @@ import 'package:solarcare/worker_approval_notice.dart';
 class TestAdminApi implements AdminApi {
   bool allowed;
   int reads = 0;
+  int grants = 0;
+  @override
+  Future<void> grantAdmin(String id, String note, bool checked) async {
+    if (!allowed || !checked) throw StateError('Unauthorized');
+    grants++;
+  }
+
   TestAdminApi({this.allowed = false});
   @override
   Future<bool> hasAccess() async => allowed;
@@ -22,7 +29,20 @@ class TestAdminApi implements AdminApi {
     int offset,
   ) async {
     reads++;
-    return {'total': 0, 'items': <Map<String, dynamic>>[]};
+    return {
+      'total': section == 'users' ? 1 : 0,
+      'items': section == 'users'
+          ? [
+              {
+                'id': 'isolated-test-account',
+                'email': 'unit-test@example.invalid',
+                'email_confirmed': true,
+                'account_type': 'Customer',
+                'created_at': null,
+              },
+            ]
+          : <Map<String, dynamic>>[],
+    };
   }
 
   @override
@@ -43,6 +63,44 @@ class TestAdminApi implements AdminApi {
 }
 
 void main() {
+  testWidgets('An administrator must explicitly confirm a new administrator', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1100, 1200);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final api = TestAdminApi(allowed: true);
+    await tester.pumpWidget(MaterialApp(home: AdminPortal(api: api)));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Users'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Make Administrator'));
+    await tester.pumpAndSettle();
+    expect(find.text('Grant administrator access'), findsOneWidget);
+    expect(api.grants, 0);
+    expect(
+      tester
+          .widget<FilledButton>(
+            find.widgetWithText(FilledButton, 'Make Administrator').last,
+          )
+          .onPressed,
+      isNull,
+    );
+    for (final checkbox in find.byType(CheckboxListTile).evaluate().toList()) {
+      await tester.tap(find.byWidget(checkbox.widget));
+      await tester.pump();
+    }
+    await tester.enterText(
+      find.byType(TextField),
+      'Verified administrator responsibility',
+    );
+    await tester.tap(
+      find.widgetWithText(FilledButton, 'Make Administrator').last,
+    );
+    await tester.pumpAndSettle();
+    expect(api.grants, 1);
+  });
   testWidgets('Unauthorized accounts never load admin records', (tester) async {
     final api = TestAdminApi();
     await tester.pumpWidget(MaterialApp(home: AdminPortal(api: api)));

@@ -8,6 +8,7 @@ import 'design.dart';
 
 class DesktopCustomerShell extends StatelessWidget {
   final int current, unread;
+  final bool admin;
   final String name, city;
   final ValueChanged<int> onSelect;
   final ValueChanged<String> onCity;
@@ -20,6 +21,7 @@ class DesktopCustomerShell extends StatelessWidget {
     required this.name,
     required this.city,
     required this.unread,
+    required this.admin,
     required this.onSelect,
     required this.onCity,
     required this.onSearch,
@@ -95,64 +97,71 @@ class DesktopCustomerShell extends StatelessWidget {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Container(
+              SizedBox(
                 width: 210,
-                color: Colors.white,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 15,
-                  vertical: 20,
-                ),
-                child: Column(
-                  children: [
-                    for (final entry in [
-                      (0, 'Home', Icons.home_outlined),
-                      (1, 'Booking', Icons.event_note),
-                      (2, 'Jobs', Icons.work_outline),
-                      (3, 'Messages', Icons.chat_bubble_outline),
-                      (4, 'Profile', Icons.person_outline),
-                    ])
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 8),
-                        child: ListTile(
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
+                child: Material(
+                  color: Colors.white,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 15,
+                      vertical: 20,
+                    ),
+                    child: Column(
+                      children: [
+                        for (final entry in [
+                          (0, 'Home', Icons.home_outlined),
+                          (1, 'Booking', Icons.event_note),
+                          (2, 'Jobs', Icons.work_outline),
+                          (3, 'Messages', Icons.chat_bubble_outline),
+                          (4, 'Profile', Icons.person_outline),
+                        ])
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 8),
+                            child: ListTile(
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              selected: current == entry.$1,
+                              selectedTileColor: const Color(0xFFE2F0FF),
+                              leading: Icon(entry.$3, size: 21),
+                              title: Text(entry.$2),
+                              onTap: entry.$1 == 1
+                                  ? onBooking
+                                  : () => onSelect(entry.$1),
+                            ),
                           ),
-                          selected: current == entry.$1,
-                          selectedTileColor: const Color(0xFFE2F0FF),
-                          leading: Icon(entry.$3, size: 21),
-                          title: Text(entry.$2),
-                          onTap: entry.$1 == 1
-                              ? onBooking
-                              : () => onSelect(entry.$1),
+                        const Spacer(),
+                        if (admin)
+                          ListTile(
+                            leading: const Icon(
+                              Icons.admin_panel_settings_outlined,
+                            ),
+                            title: const Text('Admin Dashboard'),
+                            onTap: onAdmin,
+                          ),
+                        ListTile(
+                          leading: const Icon(Icons.help_outline),
+                          title: const Text('Help & Support'),
+                          onTap: () => onSelect(3),
                         ),
-                      ),
-                    const Spacer(),
-                    ListTile(
-                      leading: const Icon(Icons.admin_panel_settings_outlined),
-                      title: const Text('Admin Dashboard'),
-                      onTap: onAdmin,
+                        ListTile(
+                          leading: const Icon(Icons.settings_outlined),
+                          title: const Text('Account Settings'),
+                          onTap: () => onSelect(4),
+                        ),
+                        OutlinedButton.icon(
+                          onPressed: onSignOut,
+                          icon: const Icon(Icons.logout),
+                          label: const Text('Sign Out'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: serveNavy,
+                            backgroundColor: Colors.white,
+                            side: const BorderSide(color: serveNavy),
+                          ),
+                        ),
+                      ],
                     ),
-                    ListTile(
-                      leading: const Icon(Icons.help_outline),
-                      title: const Text('Help & Support'),
-                      onTap: () => onSelect(3),
-                    ),
-                    ListTile(
-                      leading: const Icon(Icons.settings_outlined),
-                      title: const Text('Account Settings'),
-                      onTap: () => onSelect(4),
-                    ),
-                    OutlinedButton.icon(
-                      onPressed: onSignOut,
-                      icon: const Icon(Icons.logout),
-                      label: const Text('Sign Out'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: serveNavy,
-                        backgroundColor: Colors.white,
-                        side: const BorderSide(color: serveNavy),
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
               ),
               Expanded(

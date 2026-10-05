@@ -126,6 +126,36 @@ void main() {
 
   Widget shell(Widget child) =>
       MaterialApp(theme: solarServeTheme(), home: child);
+  for (final width in [390.0, 1440.0]) {
+    for (final admin in [false, true]) {
+      testWidgets(
+        'Admin menu visibility at width $width requires permission $admin',
+        (t) async {
+          mobileSize(t, width);
+          final api = TestCustomerApi(CustomerSnapshot(admin: admin));
+          await t.pumpWidget(
+            shell(MobileCustomerApp(api: api, mapsEnabled: false)),
+          );
+          await t.pumpAndSettle();
+          if (width < 900) {
+            await t.tap(find.text('Profile').last);
+            await t.pumpAndSettle();
+            await t.scrollUntilVisible(
+              find.text('Account Overview'),
+              250,
+              scrollable: find.byType(Scrollable).first,
+            );
+          }
+          expect(
+            find.text('Admin Dashboard'),
+            admin ? findsOneWidget : findsNothing,
+          );
+          expect(t.takeException(), isNull);
+          await t.pumpWidget(const SizedBox.shrink());
+        },
+      );
+    }
+  }
   Future<void> screen(WidgetTester t, String filename) async {
     // Optional local visual checks, captured only from empty states.
     if (!const bool.fromEnvironment('CAPTURE_MOBILE_UI')) return;

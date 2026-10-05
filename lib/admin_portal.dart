@@ -20,11 +20,20 @@ abstract class AdminApi {
     String note,
   );
   Future<void> cancelBooking(String id, String note);
+  Future<void> grantAdmin(String id, String note, bool checked);
 }
 
 class SupabaseAdminApi implements AdminApi {
   final SupabaseClient client;
   SupabaseAdminApi(this.client);
+  @override
+  Future<void> grantAdmin(String id, String note, bool checked) async {
+    await client.rpc(
+      'admin_grant_access',
+      params: {'p_user_id': id, 'p_note': note, 'p_checks_confirmed': checked},
+    );
+  }
+
   @override
   Future<bool> hasAccess() async =>
       client.auth.currentSession != null &&
@@ -553,6 +562,38 @@ class _AdminPortalState extends State<AdminPortal> {
                 '${row['account_type']} · Email ${row['email_confirmed'] == true ? 'confirmed' : 'awaiting confirmation'}',
               ),
               Text('Joined ${dateLabel(row['created_at'])}'),
+              if (row['account_type'] != 'Administrator')
+                FilledButton.icon(
+                  onPressed: loading || row['email_confirmed'] != true
+                      ? null
+                      : () async {
+                          await showDialog<void>(
+                            context: context,
+                            builder: (_) => AdminActionDialog(
+                              title: 'Grant administrator access',
+                              description:
+                                  'Grant ${row['email']} permission to manage workers, bookings and accounts, and create other administrators.',
+                              confirmLabel: 'Make Administrator',
+                              requireChecks: true,
+                              checkLabels: const [
+                                'I verified the identity of this account holder.',
+                                'I authorize this person to manage the platform.',
+                                'I understand they can grant access to other administrators.',
+                              ],
+                              noteHelper:
+                                  'This reason is recorded in the administrator activity log.',
+                              onConfirm: (note, checked) => api.grantAdmin(
+                                row['id'] as String,
+                                note,
+                                checked,
+                              ),
+                            ),
+                          );
+                          if (mounted) await load();
+                        },
+                  icon: const Icon(Icons.admin_panel_settings_outlined),
+                  label: const Text('Make Administrator'),
+                ),
             ] else ...[
               Text(
                 label((row['action'] as String).replaceAll('_', ' ')),
@@ -592,6 +633,8 @@ String adminError(Object error) =>
 class AdminActionDialog extends StatefulWidget {
   final String title, description, confirmLabel;
   final bool requireChecks;
+  final List<String> checkLabels;
+  final String noteHelper;
   final Future<void> Function(String note, bool checked) onConfirm;
   const AdminActionDialog({
     super.key,
@@ -600,6 +643,12 @@ class AdminActionDialog extends StatefulWidget {
     required this.confirmLabel,
     required this.onConfirm,
     this.requireChecks = false,
+    this.checkLabels = const [
+      'I verified the worker’s identity.',
+      'I verified the required skills and qualifications.',
+      'I confirmed the service area and hourly rate.',
+    ],
+    this.noteHelper = 'Worker review notes are visible to the worker.',
   });
   @override
   State<AdminActionDialog> createState() => _AdminActionDialogState();
@@ -637,13 +686,7 @@ class _AdminActionDialogState extends State<AdminActionDialog> {
                     onChanged: busy
                         ? null
                         : (value) => setState(() => checks[i] = value!),
-                    title: Text(
-                      [
-                        'I verified the worker’s identity.',
-                        'I verified the required skills and qualifications.',
-                        'I confirmed the service area and hourly rate.',
-                      ][i],
-                    ),
+                    title: Text(widget.checkLabels[i]),
                   ),
               ],
               TextField(
@@ -651,9 +694,9 @@ class _AdminActionDialogState extends State<AdminActionDialog> {
                 maxLength: 2000,
                 maxLines: 3,
                 enabled: !busy,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: 'Reason / review note',
-                  helperText: 'Worker review notes are visible to the worker.',
+                  helperText: widget.noteHelper,
                 ),
               ),
               if (error != null)

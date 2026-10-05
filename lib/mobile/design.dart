@@ -3,9 +3,14 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 
-const serveBlue = Color(0xFF007CEA);
+const serveBlue = Color(0xFF0066CC);
 const serveNavy = Color(0xFF071442);
-const serveMuted = Color(0xFF607396);
+const serveMuted = Color(0xFF526583);
+const serveError = Color(0xFFB3261E);
+const serveSuccess = Color(0xFF16733C);
+const serveTealStart = Color(0xFF006A80);
+const serveTealEnd = Color(0xFF006952);
+const servePhotoShade = Color(0xFF003C5C);
 const serveYellow = Color(0xFFFFCF27);
 const serveBackground = Color(0xFFF3F8FB);
 const mobileBrand = 'SolarServe';
@@ -53,7 +58,11 @@ ThemeData solarServeTheme({bool worker = false}) => ThemeData(
   colorScheme: ColorScheme.fromSeed(
     seedColor: serveBlue,
     primary: serveBlue,
+    onPrimary: Colors.white,
     secondary: serveYellow,
+    onSecondary: serveNavy,
+    error: serveError,
+    onError: Colors.white,
   ),
   textTheme: const TextTheme(
     bodyMedium: TextStyle(color: serveNavy, fontSize: 13),
@@ -66,20 +75,25 @@ ThemeData solarServeTheme({bool worker = false}) => ThemeData(
   inputDecorationTheme: InputDecorationTheme(
     filled: true,
     fillColor: Colors.white,
+    hintStyle: const TextStyle(color: serveMuted),
+    labelStyle: const TextStyle(color: serveMuted),
+    floatingLabelStyle: const TextStyle(color: serveBlue),
     contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
     border: OutlineInputBorder(
       borderRadius: BorderRadius.circular(18),
-      borderSide: const BorderSide(color: Color(0xFFDCE8F5)),
+      borderSide: const BorderSide(color: serveMuted),
     ),
     enabledBorder: OutlineInputBorder(
       borderRadius: BorderRadius.circular(18),
-      borderSide: const BorderSide(color: Color(0xFFDCE8F5)),
+      borderSide: const BorderSide(color: serveMuted),
     ),
   ),
   filledButtonTheme: FilledButtonThemeData(
     style: FilledButton.styleFrom(
       backgroundColor: serveBlue,
       foregroundColor: Colors.white,
+      disabledBackgroundColor: const Color(0xFFE4EAF2),
+      disabledForegroundColor: serveMuted,
       minimumSize: const Size(0, 48),
       shape: const StadiumBorder(),
     ),
@@ -87,13 +101,17 @@ ThemeData solarServeTheme({bool worker = false}) => ThemeData(
   outlinedButtonTheme: OutlinedButtonThemeData(
     style: OutlinedButton.styleFrom(
       foregroundColor: serveBlue,
+      disabledForegroundColor: serveMuted,
       side: const BorderSide(color: serveBlue),
       minimumSize: const Size(0, 48),
       shape: const StadiumBorder(),
     ),
   ),
   textButtonTheme: TextButtonThemeData(
-    style: TextButton.styleFrom(foregroundColor: serveBlue),
+    style: TextButton.styleFrom(
+      foregroundColor: serveBlue,
+      disabledForegroundColor: serveMuted,
+    ),
   ),
   cardTheme: CardThemeData(
     color: Colors.white,
@@ -105,9 +123,14 @@ ThemeData solarServeTheme({bool worker = false}) => ThemeData(
     shape: const StadiumBorder(),
     backgroundColor: Colors.white,
     selectedColor: serveBlue,
+    checkmarkColor: Colors.white,
     labelStyle: TextStyle(
       fontFamily: worker ? 'packages/solarcare/Poppins' : 'Poppins',
       fontSize: 12,
+      color: WidgetStateColor.resolveWith(
+        (states) =>
+            states.contains(WidgetState.selected) ? Colors.white : serveNavy,
+      ),
     ),
   ),
 );
@@ -386,7 +409,7 @@ class GlassSearch extends StatelessWidget {
                   size: 25,
                 ),
                 filled: true,
-                fillColor: Colors.white.withValues(alpha: .25),
+                fillColor: servePhotoShade.withValues(alpha: .85),
                 contentPadding: const EdgeInsets.symmetric(
                   vertical: 15,
                   horizontal: 16,
@@ -412,7 +435,7 @@ class GlassSearch extends StatelessWidget {
         tooltip: 'Filter services',
         icon: const Icon(Icons.tune, color: Colors.white),
         style: IconButton.styleFrom(
-          backgroundColor: Colors.white.withValues(alpha: .3),
+          backgroundColor: servePhotoShade.withValues(alpha: .85),
           padding: const EdgeInsets.all(14),
           side: BorderSide(color: Colors.white.withValues(alpha: .4)),
         ),

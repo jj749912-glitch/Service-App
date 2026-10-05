@@ -194,7 +194,7 @@ class _WorkerDashboardState extends State<WorkerDashboard> {
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
             gradient: const LinearGradient(
-              colors: [Color(0xFF00A6C3), Color(0xFF008D78)],
+              colors: [serveTealStart, serveTealEnd],
             ),
             borderRadius: BorderRadius.circular(20),
           ),
@@ -512,7 +512,7 @@ class _WorkerDashboardState extends State<WorkerDashboard> {
             children: [
               if (busy) const LinearProgressIndicator(),
               if (error != null)
-                Text(error!, style: const TextStyle(color: Colors.red)),
+                Text(error!, style: const TextStyle(color: serveError)),
               if (widget.liveEnabled)
                 WorkerTrackingControl.availability(
                   key: ValueKey('availability-${widget.professional['id']}'),
@@ -818,7 +818,7 @@ class _WorkerJobDetailsState extends State<WorkerJobDetails> {
                       children: [
                         const Icon(
                           Icons.check_circle,
-                          color: Colors.green,
+                          color: serveSuccess,
                           size: 60,
                         ),
                         const Text(
@@ -837,7 +837,7 @@ class _WorkerJobDetailsState extends State<WorkerJobDetails> {
                     ),
                   ),
                 if (error != null)
-                  Text(error!, style: const TextStyle(color: Colors.red)),
+                  Text(error!, style: const TextStyle(color: serveError)),
                 OutlinedButton(
                   onPressed: reload,
                   child: const Text('Refresh Job'),

@@ -232,7 +232,7 @@ class _MobileCustomerAppState extends State<MobileCustomerApp> {
                         (service) => ChoiceChip(
                           label: Text(displayService(service)),
                           selected: category == service,
-                          selectedColor: const Color(0xFFDCEEFF),
+                          selectedColor: serveBlue,
                           onSelected: (_) {
                             setState(() => category = service);
                             update(() {});
@@ -388,6 +388,7 @@ class _MobileCustomerAppState extends State<MobileCustomerApp> {
     child: MediaQuery.sizeOf(context).width >= 900
         ? DesktopCustomerShell(
             current: tab,
+            admin: data.admin,
             name: data.name,
             city: city,
             unread: data.notifications
@@ -681,7 +682,13 @@ class _MobileCustomerAppState extends State<MobileCustomerApp> {
                       selected: category == service,
                       showCheckmark: false,
                       avatar: service == 'All services'
-                          ? const Icon(Icons.apps, size: 17, color: serveBlue)
+                          ? Icon(
+                              Icons.apps,
+                              size: 17,
+                              color: category == service
+                                  ? Colors.white
+                                  : serveBlue,
+                            )
                           : ServiceArt(service, size: 21),
                       onSelected: (_) => setState(() => category = service),
                     ),
@@ -878,7 +885,7 @@ class _MobileCustomerAppState extends State<MobileCustomerApp> {
                       bookingStatus(b),
                       style: TextStyle(
                         color: b['status'] == 'completed'
-                            ? const Color(0xFF05965B)
+                            ? serveSuccess
                             : serveBlue,
                         fontWeight: FontWeight.w500,
                       ),
@@ -1284,31 +1291,28 @@ class _MobileCustomerAppState extends State<MobileCustomerApp> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             CareSection('Account Overview', onAll: () => selectTab(2)),
-            ServeCard(
-              child: Material(
-                color: Colors.white,
-                child: ListTile(
-                  leading: const Icon(
-                    Icons.admin_panel_settings_outlined,
-                    color: serveNavy,
-                  ),
-                  title: const Text(
-                    'Admin Dashboard',
-                    style: TextStyle(
+            if (data.admin)
+              ServeCard(
+                child: Material(
+                  color: Colors.white,
+                  child: ListTile(
+                    leading: const Icon(
+                      Icons.admin_panel_settings_outlined,
                       color: serveNavy,
-                      fontWeight: FontWeight.w600,
                     ),
+                    title: const Text(
+                      'Admin Dashboard',
+                      style: TextStyle(
+                        color: serveNavy,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    subtitle: const Text('Manage workers and service bookings'),
+                    trailing: const Icon(Icons.chevron_right, color: serveNavy),
+                    onTap: () => Navigator.of(context).pushNamed('/admin'),
                   ),
-                  subtitle: Text(
-                    data.admin
-                        ? 'Manage workers and service bookings'
-                        : 'Sign in with your authorized administrator account',
-                  ),
-                  trailing: const Icon(Icons.chevron_right, color: serveNavy),
-                  onTap: () => Navigator.of(context).pushNamed('/admin'),
                 ),
               ),
-            ),
             const SizedBox(height: 12),
             Row(
               children: [
@@ -1466,7 +1470,7 @@ class _MobileCustomerAppState extends State<MobileCustomerApp> {
                       : null,
                 ),
                 if (failure != null)
-                  Text(failure!, style: const TextStyle(color: Colors.red)),
+                  Text(failure!, style: const TextStyle(color: serveError)),
               ],
             ),
           ),

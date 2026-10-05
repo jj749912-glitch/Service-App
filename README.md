@@ -108,6 +108,8 @@ Open each app's `ios/Runner.xcworkspace`, choose the Apple developer team and co
 
 ## Verification and backend history
 
+Both mobile apps share the checked color palette: dark blue action buttons, dark secondary text, readable selected chips, clear field borders, dark error/success text, and photo scrims behind white captions. Worker summary tiles use darker teal. `test/mobile_contrast_test.dart` verifies at least 4.5:1 for active text and 3:1 for field borders/checkmarks, including the brightest possible photo background. These are measured palette checks and rendered screen reviews, not a full accessibility certification or a physical-device sunlight test.
+
 ```powershell
 flutter analyze
 flutter test
@@ -125,6 +127,7 @@ Verification scripts must be executed in full, including their final `ROLLBACK`:
 - `backend/multi-service-workflow-check.sql`: application atomicity, service rates/duration, overlap, decisions, notification ownership, tracking window, private contacts, milestones, messages and completed-only reviews.
 - `backend/booking-workflow-check.sql`: base customer/worker request synchronization and role isolation.
 - `backend/admin-access-check.sql`: administrator access, approval, profile editing, suspension, restoration and audit.
+- `backend/admin-account-management-check.sql`: admin-only delegation, active/confirmed account checks, session validation and audit; all fixtures roll back.
 
 Private admin tables deliberately have no direct client policies; protected server functions manage them. Leaked-password protection is disabled in the current project and can be enabled if the account plan supports it. See [Supabase password security](https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection).
 
@@ -153,7 +156,11 @@ For a manual upload, build both apps locally, copy `worker_app/build/web` into `
 
 The testing Supabase project was created at the authorized $0/month quote. This implementation adds no paid SMS, maps, payment or background-tracking integration. Monitor database, bandwidth and realtime usage in Supabase; free-tier quotas are not a capacity guarantee. See [current Supabase pricing](https://supabase.com/pricing). Netlify and app-store accounts have their own terms.
 
-Owner-provisioned administrators access **Admin Dashboard** in the desktop sidebar or at the top of Profile's account controls, or `https://servicefacilities.netlify.app/#/admin`. The entry is visible to signed-in accounts; the server allows access only to provisioned administrators with a valid session. Sign in using the owner-provisioned administrator account. Membership is held in `private.app_admins`, never user-editable metadata. The app cannot self-grant administrator access. Approval should follow real identity/qualification checks, not an unchecked design badge. Suspending a worker blocks job access and removes their discovery visibility, including with existing client tokens.
+**Admin Dashboard** appears in the customer desktop sidebar and Profile controls only when the signed-in account has administrator permission. Ordinary customers and workers have no admin menu entry. Direct navigation to `https://servicefacilities.netlify.app/#/admin` still requires a valid administrator session; every administrative server operation also checks permission. Membership is held in `private.app_admins`, never user-editable metadata.
+
+To create another administrator, have that person register normally and confirm their email. An existing administrator signs in, opens **Admin Dashboard → Users**, finds the correct account, and selects **Make Administrator**. Verify the account holder, confirm the three permission statements, enter a reason and submit. The new administrator can then access the dashboard and grant access to other administrators. Unconfirmed, deleted and banned accounts cannot be promoted; every successful grant records the acting administrator and reason. Customers and workers cannot promote themselves. `backend/admin-account-management.sql` contains this applied upgrade. The initial administrator remains owner-provisioned; public signup never grants admin permission.
+
+Worker approval should follow real identity/qualification checks, not an unchecked design badge. Suspending a worker blocks job access and removes their discovery visibility, including with existing client tokens.
 
 SMTP and email redirects are configured in Supabase. Allow both exact customer and worker production URLs. Hosting does not provide SMTP. `BREVO_SETUP.md` contains the earlier provider guide; use the sender provider chosen for this project and enter credentials only in the Supabase dashboard.
 

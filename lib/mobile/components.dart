@@ -46,8 +46,8 @@ class SolarBackdrop extends StatelessWidget {
               end: Alignment.bottomRight,
               colors: [
                 const Color(0xFF00417E).withValues(alpha: .96),
-                const Color(0xFF006AB1).withValues(alpha: .65),
-                Colors.transparent,
+                servePhotoShade.withValues(alpha: .85),
+                servePhotoShade.withValues(alpha: .8),
               ],
             ),
           ),
@@ -465,7 +465,7 @@ class _VerifiedBadge extends StatelessWidget {
     child: const Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(Icons.verified, size: 12, color: Color(0xFF03A85E)),
+        Icon(Icons.verified, size: 12, color: serveSuccess),
         SizedBox(width: 3),
         Flexible(
           child: Text(
@@ -500,9 +500,9 @@ class SolarOffer extends StatelessWidget {
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: [
-                  const Color(0xFF003C5C),
-                  const Color(0xFF006C9E).withValues(alpha: .85),
-                  Colors.transparent,
+                  servePhotoShade,
+                  servePhotoShade.withValues(alpha: .85),
+                  servePhotoShade.withValues(alpha: .8),
                 ],
               ),
             ),

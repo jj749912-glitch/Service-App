@@ -370,7 +370,7 @@ class _MobileLoginScreenState extends State<MobileLoginScreen> {
                           child: Text(
                             message!,
                             style: const TextStyle(
-                              color: Color(0xFF04945C),
+                              color: serveSuccess,
                               fontSize: 12,
                               height: 1.6,
                             ),

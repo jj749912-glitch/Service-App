@@ -92,7 +92,7 @@ class _BookingChatState extends State<BookingChat> {
             if (error != null)
               Padding(
                 padding: const EdgeInsets.all(10),
-                child: Text(error!, style: const TextStyle(color: Colors.red)),
+                child: Text(error!, style: const TextStyle(color: serveError)),
               ),
             Expanded(
               child: rows.isEmpty

@@ -178,7 +178,7 @@ class _ProviderPortalState extends State<ProviderPortal> {
                 const SizedBox(height: 20),
                 if (busy) const LinearProgressIndicator(),
                 if (error != null) ...[
-                  Text(error!, style: const TextStyle(color: Colors.red)),
+                  Text(error!, style: const TextStyle(color: serveError)),
                   TextButton(onPressed: load, child: const Text('Retry')),
                 ],
                 if (!busy && error == null && professional == null)

@@ -921,7 +921,7 @@ class _MobileBookingDetailsState extends State<MobileBookingDetails> {
                         label: const Text('Write a Review'),
                       ),
                     if (error != null)
-                      Text(error!, style: const TextStyle(color: Colors.red)),
+                      Text(error!, style: const TextStyle(color: serveError)),
                   ],
                 ),
               ),
@@ -1110,7 +1110,7 @@ class _MobileTrackingPageState extends State<MobileTrackingPage> {
                         dense: true,
                         leading: const Icon(
                           Icons.check_circle_outline,
-                          color: Colors.green,
+                          color: serveSuccess,
                         ),
                         title: Text(entry.$1),
                         subtitle: Text(
@@ -1134,7 +1134,7 @@ class _MobileTrackingPageState extends State<MobileTrackingPage> {
               ),
             ),
             if (error != null)
-              Text(error!, style: const TextStyle(color: Colors.red)),
+              Text(error!, style: const TextStyle(color: serveError)),
             const SizedBox(height: 15),
             OutlinedButton.icon(
               onPressed: reload,
