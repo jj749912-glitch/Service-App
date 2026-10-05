@@ -458,6 +458,24 @@ class _AdminPortalState extends State<AdminPortal> {
               ),
               const SizedBox(height: 12),
               Text(row['bio'] as String),
+              Text('Qualification: ${row['qualification'] ?? 'Not supplied'}'),
+              Text('Phone: ${row['phone'] ?? 'Not supplied'}'),
+              for (final service in (row['services'] as List? ?? []))
+                Text(
+                  '${service['service']} · ₹${service['hourly_rate']}/hr · ${service['years']} years\n${service['details']}',
+                ),
+              Text('Qualification: ${row['qualification'] ?? 'Not supplied'}'),
+              for (final offer in (row['services'] as List? ?? []))
+                ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(
+                    '${offer['service']} · ₹${offer['hourly_rate']}/hour',
+                  ),
+                  subtitle: Text(
+                    '${offer['years']} years · ${offer['details']}',
+                  ),
+                ),
+
               if ((row['review_note'] as String? ?? '').isNotEmpty) ...[
                 const SizedBox(height: 12),
                 Text('Last review: ${row['review_note']}'),

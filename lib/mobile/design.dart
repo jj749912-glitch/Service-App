@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 
 const serveBlue = Color(0xFF007CEA);
 const serveNavy = Color(0xFF071442);
@@ -15,22 +16,25 @@ class SolarServeFrame extends StatelessWidget {
   final Widget child;
   const SolarServeFrame({super.key, required this.child});
   @override
-  Widget build(BuildContext context) => ColoredBox(
-    color: const Color(0xFFE5ECF2),
-    child: Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 480),
-        child: LayoutBuilder(
-          builder: (context, constraints) => MediaQuery(
-            data: MediaQuery.of(
-              context,
-            ).copyWith(size: Size(constraints.maxWidth, constraints.maxHeight)),
-            child: ClipRect(child: child),
+  Widget build(BuildContext context) =>
+      kIsWeb && MediaQuery.sizeOf(context).width >= 900
+      ? child
+      : ColoredBox(
+          color: const Color(0xFFE5ECF2),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 480),
+              child: LayoutBuilder(
+                builder: (context, constraints) => MediaQuery(
+                  data: MediaQuery.of(context).copyWith(
+                    size: Size(constraints.maxWidth, constraints.maxHeight),
+                  ),
+                  child: ClipRect(child: child),
+                ),
+              ),
+            ),
           ),
-        ),
-      ),
-    ),
-  );
+        );
 }
 
 class SolarServeScrollBehavior extends MaterialScrollBehavior {
@@ -315,7 +319,13 @@ class YellowButton extends StatelessWidget {
 class ServiceArt extends StatelessWidget {
   final String service;
   final double size;
-  const ServiceArt(this.service, {super.key, this.size = 52});
+  final String? assetPackage;
+  const ServiceArt(
+    this.service, {
+    super.key,
+    this.size = 52,
+    this.assetPackage,
+  });
   String get asset => switch (service) {
     'Solar cleaning' => 'solar-cleaning',
     'Solar inspection' => 'solar-maintenance',
@@ -328,6 +338,7 @@ class ServiceArt extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Image.asset(
     'assets/mobile/$asset.png',
+    package: assetPackage,
     width: size,
     height: size,
     cacheWidth: (size * 3).round(),

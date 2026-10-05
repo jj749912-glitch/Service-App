@@ -10,6 +10,10 @@ import 'customer_data.dart';
 import 'design.dart';
 import 'worker_profile.dart';
 import 'booking_pages.dart';
+import '../tracking.dart';
+import 'booking_journey.dart';
+import 'desktop_shell.dart';
+import '../booking_chat.dart';
 
 const mobileServices = [
   'Solar cleaning',
@@ -46,11 +50,19 @@ class _MobileCustomerAppState extends State<MobileCustomerApp> {
       .where((p) => p.verified && saved.contains(p.id))
       .length;
   Timer? refresh;
+  StreamSubscription<void>? bookingChanges;
+  final announced = <String>{};
+  bool fetching = false;
   @override
   void initState() {
     super.initState();
     api = widget.api ?? SupabaseMobileCustomerApi(Supabase.instance.client);
     load();
+    if (api is BookingUpdatesApi) {
+      bookingChanges = (api as BookingUpdatesApi).bookingChanges.listen((_) {
+        if (mounted && !loading) load(quiet: true);
+      }, onError: (_) {});
+    }
     refresh = Timer.periodic(const Duration(seconds: 15), (_) {
       if (!loading && mounted) load(quiet: true);
     });
@@ -59,10 +71,13 @@ class _MobileCustomerAppState extends State<MobileCustomerApp> {
   @override
   void dispose() {
     refresh?.cancel();
+    bookingChanges?.cancel();
     super.dispose();
   }
 
   Future<void> load({bool quiet = false}) async {
+    if (fetching) return;
+    fetching = true;
     if (!quiet) setState(() => loading = true);
     try {
       final results = await Future.wait<dynamic>([
@@ -70,6 +85,19 @@ class _MobileCustomerAppState extends State<MobileCustomerApp> {
         SharedPreferences.getInstance(),
       ]);
       if (!mounted) return;
+      final incoming = results[0] as CustomerSnapshot;
+      final confirmations = incoming.notifications.where(
+        (n) =>
+            n['status'] == 'accepted' &&
+            n['read_at'] == null &&
+            !announced.contains(n['id']),
+      );
+      if (confirmations.isNotEmpty) {
+        for (final n in confirmations) {
+          announced.add(n['id'] as String);
+        }
+        notice(confirmations.first['body'] as String);
+      }
       setState(() {
         data = results[0] as CustomerSnapshot;
         saved =
@@ -86,6 +114,8 @@ class _MobileCustomerAppState extends State<MobileCustomerApp> {
               'Could not load your account. Check your connection and retry.';
         });
       }
+    } finally {
+      fetching = false;
     }
   }
 
@@ -107,12 +137,13 @@ class _MobileCustomerAppState extends State<MobileCustomerApp> {
           (p) =>
               p.verified &&
               p.city == city &&
-              (category == 'All services' || p.service == category) &&
-              '${p.name} ${p.service}'.toLowerCase().contains(
-                query.toLowerCase(),
-              ) &&
+              (category == 'All services' || p.offers(category)) &&
+              '${p.name} ${p.offerings.map((s) => s.service).join(' ')}'
+                  .toLowerCase()
+                  .contains(query.toLowerCase()) &&
               (!onlySaved || saved.contains(p.id)),
         )
+        .map((p) => category == 'All services' ? p : p.forService(category))
         .toList();
     if (sort == 'Price: low to high') {
       rows.sort((a, b) => a.rate.compareTo(b.rate));
@@ -159,8 +190,12 @@ class _MobileCustomerAppState extends State<MobileCustomerApp> {
   Future<void> bookFromExplore(Professional p) async {
     final booked = await Navigator.of(context).push<Map<String, dynamic>>(
       MaterialPageRoute(
-        builder: (_) =>
-            MobileSchedulePage(professional: p, api: api, city: city),
+        builder: (_) => BookingJourney(
+          api: api,
+          city: city,
+          initialService: p.service,
+          mapsEnabled: widget.mapsEnabled,
+        ),
       ),
     );
     if (booked != null && mounted) {
@@ -235,48 +270,70 @@ class _MobileCustomerAppState extends State<MobileCustomerApp> {
     );
   }
 
-  Future<void> notifications() => showModalBottomSheet<void>(
-    context: context,
-    showDragHandle: true,
-    backgroundColor: serveBackground,
-    isScrollControlled: true,
-    builder: (_) => SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.all(22),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Booking Updates',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(height: 16),
-            if (data.bookings.isEmpty)
-              const EmptyCare(
-                icon: Icons.notifications_none,
-                title: 'No updates yet',
-                message: 'Updates from your service requests will appear here.',
+  Future<void> notifications() async {
+    final unread = data.notifications
+        .where((n) => n['read_at'] == null)
+        .map((n) => n['id'] as String)
+        .toList();
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      backgroundColor: serveBackground,
+      isScrollControlled: true,
+      builder: (ctx) => SafeArea(
+        child: SizedBox(
+          height: MediaQuery.sizeOf(ctx).height * .7,
+          child: ListView(
+            padding: const EdgeInsets.all(22),
+            children: [
+              const Text(
+                'Booking Updates',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
               ),
-            ...data.bookings
-                .take(5)
-                .map(
-                  (b) => ListTile(
-                    leading: const Icon(
-                      Icons.event_available,
-                      color: serveBlue,
-                    ),
-                    title: Text(displayService(b['service'] as String)),
-                    subtitle: Text(
-                      '${b['professional_name']} · ${bookingStatus(b)}',
-                    ),
-                  ),
+              const SizedBox(height: 16),
+              if (data.notifications.isEmpty)
+                const EmptyCare(
+                  icon: Icons.notifications_none,
+                  title: 'No updates yet',
+                  message:
+                      'Confirmed appointments and booking updates will appear here.',
                 ),
-          ],
+              for (final n in data.notifications)
+                ListTile(
+                  leading: Icon(
+                    n['status'] == 'accepted'
+                        ? Icons.verified
+                        : Icons.event_note,
+                    color: serveBlue,
+                  ),
+                  title: Text(n['title'] as String),
+                  subtitle: Text(n['body'] as String),
+                  trailing: n['read_at'] == null
+                      ? const Icon(Icons.circle, size: 8, color: serveBlue)
+                      : null,
+                  onTap: () {
+                    final b = data.bookings
+                        .where((b) => b['id'] == n['booking_id'])
+                        .firstOrNull;
+                    Navigator.pop(ctx);
+                    if (b != null) openBooking(b);
+                  },
+                ),
+            ],
+          ),
         ),
       ),
-    ),
-  );
+    );
+    if (api is BookingUpdatesApi) {
+      try {
+        await (api as BookingUpdatesApi).readNotifications(unread);
+        if (mounted) await load(quiet: true);
+      } catch (_) {
+        if (mounted) notice('Could not mark updates as read. Please retry.');
+      }
+    }
+  }
+
   void unavailable(
     String title,
     String message, {
@@ -313,6 +370,7 @@ class _MobileCustomerAppState extends State<MobileCustomerApp> {
     actionLabel: 'Book Individual Service',
   );
   Widget header() => MobileHeader(
+    unread: data.notifications.where((n) => n['read_at'] == null).length,
     city: city,
     onCity: (value) => setState(() => city = value),
     onNotifications: notifications,
@@ -326,61 +384,114 @@ class _MobileCustomerAppState extends State<MobileCustomerApp> {
       systemNavigationBarColor: Colors.white,
       systemNavigationBarIconBrightness: Brightness.dark,
     ),
-    child: Scaffold(
-      body: RefreshIndicator(
-        onRefresh: load,
-        child: SingleChildScrollView(
-          key: ValueKey(tab),
-          physics: const AlwaysScrollableScrollPhysics(),
-          child: SolarBackdrop(
-            height: tab == 0 ? 325 : 220,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                header(),
-                if (error != null)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 18),
-                    child: ServeCard(
-                      color: const Color(0xFFFFF0DA),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              error!,
-                              style: const TextStyle(fontSize: 11),
+    child: MediaQuery.sizeOf(context).width >= 900
+        ? DesktopCustomerShell(
+            current: tab,
+            name: data.name,
+            city: city,
+            unread: data.notifications
+                .where((n) => n['read_at'] == null)
+                .length,
+            onSelect: selectTab,
+            onBooking: () => startBooking(),
+            onNotifications: notifications,
+            onCity: (c) => setState(() => city = c),
+            onSearch: (value) => setState(() {
+              query = value;
+              tab = 1;
+            }),
+            home: desktopHome(),
+            content: switch (tab) {
+              1 => nearby(),
+              2 => jobs(),
+              3 => messages(),
+              _ => profile(),
+            },
+          )
+        : Scaffold(
+            body: RefreshIndicator(
+              onRefresh: load,
+              child: SingleChildScrollView(
+                key: ValueKey(tab),
+                physics: const AlwaysScrollableScrollPhysics(),
+                child: SolarBackdrop(
+                  height: tab == 0 ? 325 : 220,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      header(),
+                      if (error != null)
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 18),
+                          child: ServeCard(
+                            color: const Color(0xFFFFF0DA),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    error!,
+                                    style: const TextStyle(fontSize: 11),
+                                  ),
+                                ),
+                                TextButton(
+                                  onPressed: load,
+                                  child: const Text('Retry'),
+                                ),
+                              ],
                             ),
                           ),
-                          TextButton(
-                            onPressed: load,
-                            child: const Text('Retry'),
-                          ),
-                        ],
-                      ),
-                    ),
+                        ),
+                      if (loading)
+                        const LinearProgressIndicator(
+                          minHeight: 2,
+                          color: serveYellow,
+                          backgroundColor: Colors.transparent,
+                        ),
+                      switch (tab) {
+                        0 => home(),
+                        1 => nearby(),
+                        2 => jobs(),
+                        3 => messages(),
+                        _ => profile(),
+                      },
+                    ],
                   ),
-                if (loading)
-                  const LinearProgressIndicator(
-                    minHeight: 2,
-                    color: serveYellow,
-                    backgroundColor: Colors.transparent,
-                  ),
-                switch (tab) {
-                  0 => home(),
-                  1 => nearby(),
-                  2 => jobs(),
-                  3 => messages(),
-                  _ => profile(),
-                },
-              ],
+                ),
+              ),
+            ),
+            bottomNavigationBar: MobileBottomBar(
+              current: tab,
+              onSelect: selectTab,
             ),
           ),
-        ),
-      ),
-      bottomNavigationBar: MobileBottomBar(current: tab, onSelect: selectTab),
-    ),
   );
 
+  Future<void> startBooking({String service = 'Solar cleaning'}) async {
+    final record = await Navigator.of(context).push<Map<String, dynamic>>(
+      MaterialPageRoute(
+        builder: (_) => BookingJourney(
+          api: api,
+          city: city,
+          initialService: service,
+          mapsEnabled: widget.mapsEnabled,
+        ),
+      ),
+    );
+    if (record != null && mounted) {
+      selectTab(2);
+      setState(() => jobFilter = 'Scheduled');
+      await load();
+    }
+  }
+
+  Widget desktopHome() => DesktopHome(
+    name: data.name,
+    city: city,
+    professionals: professionals,
+    onService: (s) => startBooking(service: s),
+    onBook: () => startBooking(),
+    onProfile: openProfile,
+  );
   Widget home() => Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
@@ -531,6 +642,13 @@ class _MobileCustomerAppState extends State<MobileCustomerApp> {
   Widget nearby() => Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
+      Padding(
+        padding: const EdgeInsets.all(16),
+        child: YellowButton(
+          'Choose Location & Find Workers',
+          onPressed: () => startBooking(service: category),
+        ),
+      ),
       Padding(
         padding: const EdgeInsets.fromLTRB(16, 2, 16, 12),
         child: GlassSearch(
@@ -811,7 +929,9 @@ class _MobileCustomerAppState extends State<MobileCustomerApp> {
               const SizedBox(width: 9),
               Expanded(
                 child: FilledButton.icon(
-                  onPressed: () => openTracking(b),
+                  onPressed: b['status'] == 'accepted'
+                      ? () => openTracking(b)
+                      : null,
                   icon: const Icon(Icons.location_on, size: 19),
                   label: const Text(
                     'Track Live',
@@ -977,16 +1097,47 @@ class _MobileCustomerAppState extends State<MobileCustomerApp> {
                   .toList(),
             ),
             const SizedBox(height: 17),
-            EmptyCare(
-              icon: Icons.chat_bubble_outline_rounded,
-              title: 'No conversations yet',
-              message:
-                  'Messaging is not available yet. View booking updates in My Jobs.',
-              action: TextButton(
-                onPressed: () => selectTab(2),
-                child: const Text('View Booking Updates →'),
+            if (!data.bookings.any(
+              (b) => ['accepted', 'completed'].contains(b['status']),
+            ))
+              EmptyCare(
+                icon: Icons.chat_bubble_outline_rounded,
+                title: 'No conversations yet',
+                message:
+                    'Conversations become available after a worker accepts your booking.',
+                action: TextButton(
+                  onPressed: () => selectTab(2),
+                  child: const Text('View Booking Updates →'),
+                ),
               ),
-            ),
+            for (final b in data.bookings.where(
+              (b) =>
+                  ['accepted', 'completed'].contains(b['status']) &&
+                  messageFilter != 'Support' &&
+                  (query.isEmpty ||
+                      '${b['professional_name']} ${b['service']}'
+                          .toLowerCase()
+                          .contains(query.toLowerCase())),
+            ))
+              ServeCard(
+                child: ListTile(
+                  leading: ProfessionalAvatar(
+                    b['professional_name'] as String,
+                    size: 46,
+                  ),
+                  title: Text(b['professional_name'] as String),
+                  subtitle: Text(displayService(b['service'] as String)),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: widget.api == null
+                      ? () => Navigator.push(
+                          context,
+                          MaterialPageRoute<void>(
+                            builder: (_) => BookingChat(booking: b),
+                          ),
+                        )
+                      : null,
+                ),
+              ),
           ],
         ),
       ),

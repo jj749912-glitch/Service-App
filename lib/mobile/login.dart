@@ -19,12 +19,13 @@ class _MobileLoginScreenState extends State<MobileLoginScreen> {
   final name = TextEditingController(),
       email = TextEditingController(),
       password = TextEditingController(),
-      confirm = TextEditingController();
+      confirm = TextEditingController(),
+      qualification = TextEditingController();
   bool signup = false, busy = false, visible = false, confirmation = false;
   String? error, message;
   @override
   void dispose() {
-    for (final controller in [name, email, password, confirm]) {
+    for (final controller in [name, email, password, confirm, qualification]) {
       controller.dispose();
     }
     super.dispose();
@@ -48,6 +49,7 @@ class _MobileLoginScreenState extends State<MobileLoginScreen> {
           name.text.trim(),
           email.text.trim(),
           password.text,
+          qualification: widget.worker ? qualification.text.trim() : null,
         );
         if (needsConfirmation && mounted) {
           setState(() {
@@ -108,7 +110,86 @@ class _MobileLoginScreenState extends State<MobileLoginScreen> {
   }
 
   @override
-  Widget build(BuildContext context) => AnnotatedRegion<SystemUiOverlayStyle>(
+  Widget build(BuildContext context) {
+    if (MediaQuery.sizeOf(context).width < 900 || widget.worker) {
+      return loginPanel(context);
+    }
+    return Scaffold(
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Row(
+            children: [
+              Expanded(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(24),
+                  child: SolarBackdrop(
+                    height: MediaQuery.sizeOf(context).height,
+                    child: Padding(
+                      padding: const EdgeInsets.all(42),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const ServeBrand(size: 42),
+                          const Spacer(),
+                          const Text(
+                            'Cleaner Homes\nBrighter Tomorrow',
+                            style: TextStyle(
+                              fontSize: 38,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
+                            ),
+                          ),
+                          const SizedBox(height: 22),
+                          for (final item in [
+                            (
+                              Icons.verified_user_outlined,
+                              'Approved Professionals',
+                            ),
+                            (Icons.event_available, 'Easy Booking'),
+                            (Icons.solar_power, 'Local Solar & Property Care'),
+                          ])
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 12),
+                              child: Row(
+                                children: [
+                                  Icon(item.$1, color: Colors.white),
+                                  const SizedBox(width: 12),
+                                  Text(
+                                    item.$2,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 16,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          const SizedBox(height: 24),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 30),
+              SizedBox(
+                width: 430,
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(24),
+                  child: loginPanel(context),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget loginPanel(
+    BuildContext context,
+  ) => AnnotatedRegion<SystemUiOverlayStyle>(
     value: const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
       statusBarIconBrightness: Brightness.light,
@@ -191,6 +272,23 @@ class _MobileLoginScreenState extends State<MobileLoginScreen> {
                           ),
                           validator: (v) => (v?.trim().length ?? 0) < 3
                               ? 'Enter your full name.'
+                              : null,
+                        ),
+                        const SizedBox(height: 13),
+                      ],
+                      if (signup && widget.worker) ...[
+                        TextFormField(
+                          controller: qualification,
+                          enabled: !busy,
+                          maxLength: 2000,
+                          maxLines: 2,
+                          decoration: const InputDecoration(
+                            labelText: 'Qualification',
+                            hintText:
+                                'Education, trade training or relevant certification',
+                          ),
+                          validator: (v) => (v?.trim().length ?? 0) < 2
+                              ? 'Enter your qualification.'
                               : null,
                         ),
                         const SizedBox(height: 13),

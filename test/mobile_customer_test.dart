@@ -12,10 +12,14 @@ import 'package:solarcare/mobile/customer_app.dart';
 import 'package:solarcare/mobile/customer_data.dart';
 import 'package:solarcare/mobile/design.dart';
 import 'package:solarcare/mobile/worker_profile.dart';
+import 'package:solarcare/mobile/booking_journey.dart';
+import 'package:solarcare/mobile/location_map.dart';
+import 'package:solarcare/tracking.dart';
+import 'package:latlong2/latlong.dart';
 import 'auth_gate_test.dart' show TestAuth;
 
 // Isolated UI responses. Nothing in this file writes to Supabase.
-class TestCustomerApi implements MobileCustomerApi {
+class TestCustomerApi implements MobileCustomerApi, NearbyWorkersApi {
   CustomerSnapshot snapshot;
   int requests = 0;
   DateTime? requestedStart;
@@ -29,10 +33,12 @@ class TestCustomerApi implements MobileCustomerApi {
   Future<Map<String, dynamic>> book(
     Professional p,
     DateTime start,
-    int hours,
+    num hours,
     String address,
-    String notes,
-  ) async {
+    String notes, {
+    double? latitude,
+    double? longitude,
+  }) async {
     requests++;
     requestedStart = start;
     requestedAddress = address.trim();
@@ -42,11 +48,15 @@ class TestCustomerApi implements MobileCustomerApi {
       'professional_name': p.name,
       'service': p.service,
       'starts_at': start.toUtc().toIso8601String(),
-      'ends_at': start.add(Duration(hours: hours)).toUtc().toIso8601String(),
+      'ends_at': start
+          .add(Duration(minutes: (hours * 60).round()))
+          .toUtc()
+          .toIso8601String(),
       'hours': hours,
       'address': address.trim(),
       'notes': notes.trim(),
-      'total': 650,
+      'total': (p.rate * hours).ceil(),
+      'duration_minutes': (hours * 60).round(),
       'status': 'requested',
     };
     snapshot = CustomerSnapshot(
@@ -65,6 +75,16 @@ class TestCustomerApi implements MobileCustomerApi {
   Future<void> rename(String name) async {}
   @override
   Future<void> signOut() async {}
+  @override
+  Future<List<Map<String, dynamic>>> availableWorkers() async => [
+    for (final p in snapshot.professionals)
+      {
+        'professional_id': p.id,
+        'latitude': 9.9816,
+        'longitude': 76.2999,
+        'updated_at': DateTime.now().toUtc().toIso8601String(),
+      },
+  ];
 }
 
 const testProfessional = Professional(
@@ -167,7 +187,7 @@ void main() {
     await t.pumpAndSettle();
     expect(find.text('Arjun K'), findsNothing);
     expect(
-      find.textContaining('Messaging is not available yet.'),
+      find.textContaining('Conversations become available'),
       findsOneWidget,
     );
     await screen(t, 'messages');
@@ -283,7 +303,7 @@ void main() {
       findsOneWidget,
     );
     await t.enterText(
-      find.byType(TextFormField).first,
+      find.widgetWithText(TextFormField, 'Service address'),
       'Unit test address only',
     );
     await t.ensureVisible(find.text('Confirm Schedule'));
@@ -356,6 +376,28 @@ void main() {
       await t.ensureVisible(find.text('Book'));
       await t.tap(find.text('Book'));
       await t.pumpAndSettle();
+      expect(find.byType(BookingJourney), findsOneWidget);
+      expect(find.text('Select Your Location'), findsOneWidget);
+      await t.enterText(
+        find.widgetWithText(TextFormField, 'Full service address'),
+        'Unit test service address',
+      );
+      t.widget<LocationMap>(find.byType(LocationMap)).onPick!(
+        const LatLng(9.9816, 76.2999),
+      );
+      await t.pumpAndSettle();
+      await t.ensureVisible(find.text('Confirm Location'));
+      await t.tap(find.text('Confirm Location'));
+      await t.pumpAndSettle();
+      await t.ensureVisible(find.text('Continue to Workers'));
+      await t.tap(find.text('Continue to Workers'));
+      await t.pumpAndSettle();
+      await t.ensureVisible(find.text('Select Worker'));
+      await t.tap(find.text('Select Worker'));
+      await t.pumpAndSettle();
+      await t.ensureVisible(find.text('Continue to Confirm'));
+      await t.tap(find.text('Continue to Confirm'));
+      await t.pumpAndSettle();
       final schedule = t.widget<MobileSchedulePage>(
         find.byType(MobileSchedulePage),
       );
@@ -363,7 +405,7 @@ void main() {
       expect(schedule.professional.service, 'Solar cleaning');
       expect(api.requests, 0);
       await t.enterText(
-        find.byType(TextFormField).first,
+        find.widgetWithText(TextFormField, 'Service address'),
         'Unit test service address',
       );
       await t.ensureVisible(find.text('Confirm Schedule'));
@@ -506,7 +548,7 @@ void main() {
         480,
       );
       await t.enterText(
-        find.byType(TextFormField).first,
+        find.widgetWithText(TextFormField, 'Service address'),
         'Unit test service address',
       );
       await t.ensureVisible(find.text('Confirm Schedule'));

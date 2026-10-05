@@ -4,7 +4,7 @@ import 'components.dart';
 import 'customer_app.dart' show MobileBottomBar;
 import 'customer_data.dart';
 import 'design.dart';
-import 'booking_pages.dart';
+import 'booking_journey.dart';
 
 class MobileWorkerProfile extends StatefulWidget {
   final Professional professional;
@@ -55,11 +55,10 @@ class _MobileWorkerProfileState extends State<MobileWorkerProfile> {
   Future<void> schedule({bool earliest = false}) async {
     final booked = await Navigator.of(context).push<Map<String, dynamic>>(
       MaterialPageRoute(
-        builder: (_) => MobileSchedulePage(
-          professional: widget.professional,
+        builder: (_) => BookingJourney(
           api: widget.api,
           city: widget.city,
-          earliest: earliest,
+          initialService: widget.professional.service,
         ),
       ),
     );
@@ -238,7 +237,21 @@ class _MobileWorkerProfileState extends State<MobileWorkerProfile> {
                         ],
                       ),
                     const SizedBox(height: 15),
+                    if (p.qualification.isNotEmpty) ...[
+                      const CareSection('Qualification'),
+                      Text(p.qualification),
+                      const SizedBox(height: 15),
+                    ],
                     const CareSection('Services Offered'),
+                    for (final option in p.offerings)
+                      ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        title: Text(displayService(option.service)),
+                        subtitle: Text(
+                          '${option.details}\n${option.years} years experience · ₹${option.rate}/hour',
+                        ),
+                      ),
+
                     Row(
                       children: [
                         ServeCard(

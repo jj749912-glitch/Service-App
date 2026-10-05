@@ -1,4 +1,5 @@
 import 'locations.dart';
+import 'service_offering.dart';
 import 'package:flutter/foundation.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
@@ -58,6 +59,8 @@ class Professional {
   final int rate, years, reviewCount;
   final double rating;
   final bool verified;
+  final List<ServiceOffering> services;
+  final String qualification;
   const Professional(
     this.id,
     this.name,
@@ -69,7 +72,32 @@ class Professional {
     this.city = initialCity,
     this.verified = false,
     this.reviewCount = 0,
+    this.services = const [],
+    this.qualification = '',
   });
+  List<ServiceOffering> get offerings => services.isEmpty
+      ? [ServiceOffering(service, rate, years, bio)]
+      : services;
+  bool offers(String value) => offerings.any((s) => s.service == value);
+  Professional forService(String value) {
+    final option = offerings.where((s) => s.service == value).firstOrNull;
+    if (option == null) return this;
+    return Professional(
+      id,
+      name,
+      option.service,
+      option.rate,
+      rating,
+      option.years,
+      option.details,
+      city: city,
+      verified: verified,
+      reviewCount: reviewCount,
+      services: offerings,
+      qualification: qualification,
+    );
+  }
+
   factory Professional.fromJson(Map<String, dynamic> j) => Professional(
     j['id'],
     j['name'],
@@ -81,6 +109,10 @@ class Professional {
     city: j['city'],
     verified: j['verified'],
     reviewCount: j['review_count'] ?? 0,
+    qualification: j['qualification'] as String? ?? '',
+    services: (j['services'] as List? ?? [])
+        .map((s) => ServiceOffering.fromJson(Map<String, dynamic>.from(s)))
+        .toList(),
   );
 }
 

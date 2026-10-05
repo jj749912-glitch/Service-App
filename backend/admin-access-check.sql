@@ -18,12 +18,12 @@ do $$ begin
   begin perform public.admin_update_worker(current_setting('test.professional_id')::uuid,'{}','Invalid attempt'); raise exception 'FAIL: non-admin edited worker'; exception when insufficient_privilege then null; end;
   begin perform public.admin_cancel_booking(current_setting('test.booking_id')::uuid,'Invalid attempt'); raise exception 'FAIL: non-admin cancelled booking'; exception when insufficient_privilege then null; end;
   begin insert into private.app_admins(user_id) values(auth.uid()); raise exception 'FAIL: self-admin grant'; exception when insufficient_privilege then null; end;
-  begin insert into public.professionals(id,user_id,name,service,city,hourly_rate,years,bio,verified)
-    values(current_setting('test.professional_id')::uuid,auth.uid(),'Transaction worker','Solar cleaning','Ernakulam',500,3,'Only used inside a rolled back verification transaction.',true);
+  begin insert into public.professionals(id,user_id,name,service,city,hourly_rate,years,bio,qualification,verified)
+    values(current_setting('test.professional_id')::uuid,auth.uid(),'Transaction worker','Solar cleaning','Ernakulam',500,3,'Only used inside a rolled back verification transaction.','Rollback qualification',true);
     raise exception 'FAIL: worker self-approved'; exception when insufficient_privilege then null; end;
 end $$;
-insert into public.professionals(id,user_id,name,service,city,hourly_rate,years,bio)
-  values(current_setting('test.professional_id')::uuid,auth.uid(),'Transaction worker','Solar cleaning','Ernakulam',500,3,'Only used inside a rolled back verification transaction.');
+insert into public.professionals(id,user_id,name,service,city,hourly_rate,years,bio,qualification)
+  values(current_setting('test.professional_id')::uuid,auth.uid(),'Transaction worker','Solar cleaning','Ernakulam',500,3,'Only used inside a rolled back verification transaction.','Rollback qualification');
 do $$ declare changed integer; begin
   if public.my_worker_review()->>'status'<>'pending' then raise exception 'FAIL: new worker not pending'; end if;
   begin
@@ -51,7 +51,7 @@ reset role;
 select set_config('request.jwt.claims',jsonb_build_object('sub',current_setting('test.customer_id'),'role','authenticated')::text,true);
 set local role authenticated;
 insert into public.bookings(id,customer_id,professional_id,professional_name,service,starts_at,hours,ends_at,address,total)
-  values(current_setting('test.booking_id')::uuid,auth.uid(),current_setting('test.professional_id')::uuid,'server replaces this','server replaces this',now()+interval '2 days',2,now()+interval '2 days 2 hours','Transaction-only address, Ernakulam',1);
+  values(current_setting('test.booking_id')::uuid,auth.uid(),current_setting('test.professional_id')::uuid,'server replaces this','Solar cleaning',now()+interval '2 days',2,now()+interval '2 days 2 hours','Transaction-only address, Ernakulam',1);
 do $$ begin
   if (select total from public.bookings where id=current_setting('test.booking_id')::uuid)<>1300 then raise exception 'FAIL: edited hourly rate not enforced'; end if;
 end $$;

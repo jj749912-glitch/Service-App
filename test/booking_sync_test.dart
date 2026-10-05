@@ -74,13 +74,25 @@ void main() {
         final worker = WorkerResponse(api);
         await t.pumpWidget(shell(ProviderPortal(api: worker)));
         await t.pumpAndSettle();
-        expect(find.text('Solar cleaning · requested'), findsOneWidget);
+        await t.tap(find.text('Jobs').last);
+        await t.pumpAndSettle();
+        expect(find.text('Requested'), findsOneWidget);
         await t.ensureVisible(
           find.text(decision == 'accepted' ? 'Accept' : 'Decline'),
         );
         await t.tap(find.text(decision == 'accepted' ? 'Accept' : 'Decline'));
         await t.pumpAndSettle();
-        expect(find.text('Solar cleaning · $decision'), findsOneWidget);
+        final workerFilter = find.text(
+          decision == 'accepted' ? 'Accepted (1)' : 'Declined / Cancelled (1)',
+        );
+        await t.ensureVisible(workerFilter);
+        await t.pumpAndSettle();
+        await t.tap(workerFilter);
+        await t.pumpAndSettle();
+        expect(
+          find.text(decision == 'accepted' ? 'Confirmed' : 'Cancelled'),
+          findsOneWidget,
+        );
         expect(find.text('Accept'), findsNothing);
         expect(find.text('Decline'), findsNothing);
         await t.pumpWidget(const SizedBox());
@@ -98,7 +110,7 @@ void main() {
         await t.tap(filter);
         await t.pumpAndSettle();
         expect(
-          find.text(decision == 'accepted' ? 'Scheduled' : 'Cancelled'),
+          find.text(decision == 'accepted' ? 'Confirmed' : 'Cancelled'),
           findsOneWidget,
         );
         expect(find.text('Test Professional'), findsOneWidget);
@@ -115,15 +127,17 @@ void main() {
     final worker = WorkerResponse(api)..fail = true;
     await t.pumpWidget(shell(ProviderPortal(api: worker)));
     await t.pumpAndSettle();
+    await t.tap(find.text('Jobs').last);
+    await t.pumpAndSettle();
     await t.ensureVisible(find.text('Accept'));
     await t.tap(find.text('Accept'));
     await t.pumpAndSettle();
     expect(api.snapshot.bookings.single['status'], 'requested');
-    expect(find.text('Retry'), findsOneWidget);
+    expect(find.textContaining('Could not save the decision'), findsOneWidget);
     worker.fail = false;
-    await t.tap(find.text('Retry'));
+    await t.tap(find.byTooltip('Refresh'));
     await t.pumpAndSettle();
-    expect(find.text('Solar cleaning · requested'), findsOneWidget);
+    expect(find.text('Requested'), findsOneWidget);
     await t.pumpWidget(const SizedBox());
   });
   testWidgets('An open booking details screen refreshes a worker decision', (
@@ -142,7 +156,7 @@ void main() {
     api.snapshot.bookings.single['status'] = 'accepted';
     await t.pump(const Duration(seconds: 15));
     await t.pumpAndSettle();
-    expect(find.text('Scheduled'), findsOneWidget);
+    expect(find.text('Confirmed'), findsOneWidget);
     expect(find.text('Cancel Request'), findsNothing);
     expect(t.takeException(), isNull);
     await t.pumpWidget(const SizedBox());

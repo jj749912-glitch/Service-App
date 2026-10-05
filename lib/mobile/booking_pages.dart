@@ -5,18 +5,26 @@ import '../review_dialog.dart';
 import 'components.dart';
 import 'customer_data.dart';
 import 'design.dart';
+import 'package:latlong2/latlong.dart';
+import '../tracking.dart';
+import 'location_map.dart';
+import 'booking_contact.dart';
 
 class MobileSchedulePage extends StatefulWidget {
   final Professional professional;
   final MobileCustomerApi api;
   final String city;
   final bool earliest;
+  final String initialAddress;
+  final LatLng? customerLocation;
   const MobileSchedulePage({
     super.key,
     required this.professional,
     required this.api,
     required this.city,
     this.earliest = false,
+    this.initialAddress = '',
+    this.customerLocation,
   });
   @override
   State<MobileSchedulePage> createState() => _MobileSchedulePageState();
@@ -26,14 +34,27 @@ class _MobileSchedulePageState extends State<MobileSchedulePage> {
   final form = GlobalKey<FormState>();
   final address = TextEditingController(), notes = TextEditingController();
   late DateTime selectedDay, week;
-  int hour = 9, hours = 2;
+  int hour = 9, minute = 0;
+  final duration = TextEditingController(text: '120');
+  final time = TextEditingController(text: '09:00');
+  int get minutes => int.tryParse(duration.text) ?? 0;
+  num get hours => minutes / 60;
+  late Professional selectedProfessional;
+
   bool busy = false;
   String? error;
-  DateTime get start =>
-      DateTime(selectedDay.year, selectedDay.month, selectedDay.day, hour);
+  DateTime get start => DateTime(
+    selectedDay.year,
+    selectedDay.month,
+    selectedDay.day,
+    hour,
+    minute,
+  );
   @override
   void initState() {
     super.initState();
+    selectedProfessional = widget.professional;
+    address.text = widget.initialAddress;
     final now = DateTime.now();
     final first = widget.earliest && now.hour < 16
         ? now
@@ -41,12 +62,15 @@ class _MobileSchedulePageState extends State<MobileSchedulePage> {
     selectedDay = DateTime(first.year, first.month, first.day);
     week = selectedDay;
     if (widget.earliest && selectedDay.day == now.day) {
-      hour = [9, 11, 14, 16].firstWhere((slot) => slot > now.hour);
+      hour = now.hour + 1;
     }
+    time.text = '${hour.toString().padLeft(2, '0')}:00';
   }
 
   @override
   void dispose() {
+    time.dispose();
+    duration.dispose();
     address.dispose();
     notes.dispose();
     super.dispose();
@@ -86,7 +110,7 @@ class _MobileSchedulePageState extends State<MobileSchedulePage> {
       setState(() => error = 'Choose a future date and time.');
       return;
     }
-    if (!widget.professional.verified) {
+    if (!selectedProfessional.verified) {
       setState(() => error = 'This professional is awaiting approval.');
       return;
     }
@@ -99,15 +123,17 @@ class _MobileSchedulePageState extends State<MobileSchedulePage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              '${widget.professional.name} · ${displayService(widget.professional.service)}',
+              '${selectedProfessional.name} · ${displayService(selectedProfessional.service)}',
             ),
             const SizedBox(height: 10),
-            Text('${formatDate(start)}\n${formatTime(start)} · $hours hours'),
+            Text(
+              '${formatDate(start)}\n${formatTime(start)} · $minutes minutes',
+            ),
             const SizedBox(height: 10),
             Text(address.text.trim()),
             const SizedBox(height: 10),
             Text(
-              'Labour estimate: ₹${widget.professional.rate * hours}',
+              'Labour estimate: ₹${(selectedProfessional.rate * minutes / 60).ceil()}',
               style: const TextStyle(fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 8),
@@ -136,11 +162,13 @@ class _MobileSchedulePageState extends State<MobileSchedulePage> {
     });
     try {
       final record = await widget.api.book(
-        widget.professional,
+        selectedProfessional,
         start,
         hours,
         address.text,
         notes.text,
+        latitude: widget.customerLocation?.latitude,
+        longitude: widget.customerLocation?.longitude,
       );
       if (!mounted) return;
       await showDialog<void>(
@@ -177,7 +205,7 @@ class _MobileSchedulePageState extends State<MobileSchedulePage> {
 
   @override
   Widget build(BuildContext context) {
-    final p = widget.professional;
+    final p = selectedProfessional;
     const monthNames = [
       'January',
       'February',
@@ -232,7 +260,7 @@ class _MobileSchedulePageState extends State<MobileSchedulePage> {
                                 height: 23,
                                 decoration: BoxDecoration(
                                   shape: BoxShape.circle,
-                                  color: i == 0
+                                  color: i == 3
                                       ? serveYellow
                                       : Colors.white.withValues(alpha: .15),
                                   border: Border.all(color: Colors.white),
@@ -242,19 +270,14 @@ class _MobileSchedulePageState extends State<MobileSchedulePage> {
                                     '${i + 1}',
                                     style: TextStyle(
                                       fontSize: 11,
-                                      color: i == 0 ? serveNavy : Colors.white,
+                                      color: i == 3 ? serveNavy : Colors.white,
                                     ),
                                   ),
                                 ),
                               ),
                               const SizedBox(height: 6),
                               Text(
-                                [
-                                  'Service',
-                                  'Schedule',
-                                  'Details',
-                                  'Confirm',
-                                ][i],
+                                ['Location', 'Service', 'Worker', 'Confirm'][i],
                                 style: const TextStyle(
                                   color: Colors.white,
                                   fontSize: 10,
@@ -280,6 +303,32 @@ class _MobileSchedulePageState extends State<MobileSchedulePage> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       const CareSection('Selected Service'),
+                      if (p.offerings.length > 1)
+                        DropdownButtonFormField<String>(
+                          initialValue: p.service,
+                          isExpanded: true,
+                          decoration: const InputDecoration(
+                            labelText: 'Service to book',
+                          ),
+                          items: p.offerings
+                              .map(
+                                (s) => DropdownMenuItem(
+                                  value: s.service,
+                                  child: Text(
+                                    '${displayService(s.service)} · ₹${s.rate}/hr',
+                                    style: const TextStyle(fontSize: 12),
+                                  ),
+                                ),
+                              )
+                              .toList(),
+                          onChanged: busy
+                              ? null
+                              : (s) => setState(
+                                  () => selectedProfessional = p.forService(s!),
+                                ),
+                        ),
+                      const SizedBox(height: 12),
+
                       ServeCard(
                         child: Row(
                           children: [
@@ -444,79 +493,48 @@ class _MobileSchedulePageState extends State<MobileSchedulePage> {
                         ),
                       ),
                       const SizedBox(height: 20),
-                      const CareSection('Select Time Slot'),
-                      Wrap(
-                        spacing: 7,
-                        runSpacing: 7,
-                        children: [9, 11, 14, 16]
-                            .map(
-                              (value) => SizedBox(
-                                width:
-                                    (MediaQuery.sizeOf(context).width - 55) / 2,
-                                child: InkWell(
-                                  onTap: busy
-                                      ? null
-                                      : () => setState(() {
-                                          hour = value;
-                                          error = null;
-                                        }),
-                                  borderRadius: BorderRadius.circular(15),
-                                  child: ServeCard(
-                                    color: value == hour
-                                        ? const Color(0xFFFFEFAA)
-                                        : Colors.white,
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 10,
-                                      vertical: 12,
-                                    ),
-                                    radius: 15,
-                                    child: Row(
-                                      children: [
-                                        Icon(
-                                          Icons.schedule,
-                                          color: value == hour
-                                              ? serveNavy
-                                              : serveBlue,
-                                          size: 20,
-                                        ),
-                                        const SizedBox(width: 9),
-                                        Expanded(
-                                          child: Text(
-                                            '${formatTime(DateTime(2026, 1, 1, value))}\n– ${formatTime(DateTime(2026, 1, 1, value + hours))}',
-                                            style: const TextStyle(
-                                              fontSize: 10,
-                                              height: 1.4,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            )
-                            .toList(),
+                      const CareSection('Visit Time & Duration'),
+                      TextFormField(
+                        controller: time,
+                        enabled: !busy,
+                        keyboardType: TextInputType.datetime,
+                        decoration: const InputDecoration(
+                          labelText: 'Start time (24-hour HH:mm)',
+                          hintText: '09:30',
+                        ),
+                        validator: (v) {
+                          final match = RegExp(
+                            r'^(\d{1,2}):(\d{2})$',
+                          ).firstMatch(v?.trim() ?? '');
+                          if (match == null) {
+                            return 'Enter a time such as 09:30';
+                          }
+                          final h = int.parse(match[1]!);
+                          final m = int.parse(match[2]!);
+                          if (h > 23 || m > 59) return 'Enter a valid time';
+                          hour = h;
+                          minute = m;
+                          return null;
+                        },
+                        onChanged: (_) => setState(() {}),
                       ),
                       const SizedBox(height: 13),
-                      DropdownButtonFormField<int>(
-                        initialValue: hours,
+                      TextFormField(
+                        controller: duration,
+                        enabled: !busy,
+                        keyboardType: TextInputType.number,
                         decoration: const InputDecoration(
-                          labelText: 'Visit duration',
+                          labelText: 'Visit duration (minutes)',
+                          helperText:
+                              'Enter 15–720 minutes. Price is calculated per minute and rounded up to ₹1.',
                         ),
-                        items: [1, 2, 3, 4]
-                            .map(
-                              (v) => DropdownMenuItem(
-                                value: v,
-                                child: Text(
-                                  '$v hour${v == 1 ? '' : 's'}',
-                                  style: const TextStyle(fontSize: 12),
-                                ),
-                              ),
-                            )
-                            .toList(),
-                        onChanged: busy
-                            ? null
-                            : (v) => setState(() => hours = v!),
+                        validator: (v) {
+                          final n = int.tryParse(v ?? '');
+                          return n == null || n < 15 || n > 720
+                              ? 'Enter 15–720 minutes'
+                              : null;
+                        },
+                        onChanged: (_) => setState(() {}),
                       ),
                       const SizedBox(height: 19),
                       const CareSection('Preferred Worker'),
@@ -602,7 +620,7 @@ class _MobileSchedulePageState extends State<MobileSchedulePage> {
                                     style: TextStyle(fontSize: 10),
                                   ),
                                   Text(
-                                    '₹${p.rate * hours}',
+                                    '₹${(p.rate * minutes / 60).ceil()}',
                                     style: const TextStyle(
                                       fontSize: 27,
                                       fontWeight: FontWeight.w600,
@@ -637,7 +655,7 @@ class _MobileSchedulePageState extends State<MobileSchedulePage> {
                                   ),
                                   const SizedBox(height: 5),
                                   Text(
-                                    '$hours Hours',
+                                    '$minutes minutes',
                                     style: const TextStyle(
                                       fontSize: 19,
                                       fontWeight: FontWeight.w600,
@@ -869,6 +887,7 @@ class _MobileBookingDetailsState extends State<MobileBookingDetails> {
                       style: TextStyle(fontSize: 10, color: serveMuted),
                     ),
                     const SizedBox(height: 18),
+                    BookingContact(booking: booking, api: widget.api),
                     OutlinedButton.icon(
                       onPressed: busy ? null : reload,
                       icon: const Icon(Icons.refresh),
@@ -881,10 +900,21 @@ class _MobileBookingDetailsState extends State<MobileBookingDetails> {
                       ),
                     if (booking['status'] == 'completed')
                       FilledButton.icon(
-                        onPressed: () => showDialog<bool>(
-                          context: context,
-                          builder: (_) => ReviewDialog(booking: booking),
-                        ),
+                        onPressed: () async {
+                          final saved = await showDialog<bool>(
+                            context: context,
+                            builder: (_) => ReviewDialog(booking: booking),
+                          );
+                          if (saved == true && context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                  'Your review has been published. Thank you.',
+                                ),
+                              ),
+                            );
+                          }
+                        },
                         icon: const Icon(Icons.star_outline),
                         label: const Text('Write a Review'),
                       ),
@@ -919,22 +949,21 @@ class MobileTrackingPage extends StatefulWidget {
 
 class _MobileTrackingPageState extends State<MobileTrackingPage> {
   late Map<String, dynamic> booking;
-  Timer? refresh;
+  Map<String, dynamic>? location;
+  Timer? timer;
   bool refreshing = false;
   String? error;
-  String get city => widget.city;
-  bool get mapsEnabled => widget.mapsEnabled;
   @override
   void initState() {
     super.initState();
     booking = Map.of(widget.booking);
     reload();
-    refresh = Timer.periodic(const Duration(seconds: 15), (_) => reload());
+    timer = Timer.periodic(const Duration(seconds: 5), (_) => reload());
   }
 
   @override
   void dispose() {
-    refresh?.cancel();
+    timer?.cancel();
     super.dispose();
   }
 
@@ -943,206 +972,176 @@ class _MobileTrackingPageState extends State<MobileTrackingPage> {
     refreshing = true;
     try {
       final snapshot = await widget.api.load();
-      final rows = snapshot.bookings.where((b) => b['id'] == booking['id']);
-      if (mounted && rows.isNotEmpty) {
+      final updated = snapshot.bookings
+          .where((b) => b['id'] == booking['id'])
+          .firstOrNull;
+      if (updated == null) throw StateError('Booking no longer available');
+      Map<String, dynamic>? point;
+      if (trackingWindowOpen(updated, DateTime.now()) &&
+          widget.api is BookingUpdatesApi) {
+        point = await (widget.api as BookingUpdatesApi).workerLocation(
+          booking['id'] as String,
+        );
+      }
+      if (mounted) {
         setState(() {
-          booking = Map.of(rows.first);
+          booking = Map.of(updated);
+          location = point;
           error = null;
         });
       }
     } catch (_) {
       if (mounted) {
-        setState(() => error = 'Could not refresh this booking. Please retry.');
+        setState(() {
+          location = null;
+          error =
+              'Could not refresh your booking or location. Check your connection and retry.';
+        });
       }
     } finally {
       refreshing = false;
     }
   }
 
+  bool get live {
+    if (location == null || !trackingWindowOpen(booking, DateTime.now())) {
+      return false;
+    }
+    final timestamp = DateTime.tryParse(
+      location!['updated_at'] as String? ?? '',
+    );
+    return timestamp != null &&
+        DateTime.now().difference(timestamp) < const Duration(minutes: 2);
+  }
+
   @override
-  Widget build(BuildContext context) => Scaffold(
-    body: SingleChildScrollView(
-      child: SolarBackdrop(
-        height: 225,
+  Widget build(BuildContext context) {
+    final worker = live
+        ? LatLng(
+            (location!['latitude'] as num).toDouble(),
+            (location!['longitude'] as num).toDouble(),
+          )
+        : null;
+    final customer =
+        booking['customer_latitude'] == null ||
+            booking['customer_longitude'] == null
+        ? null
+        : LatLng(
+            (booking['customer_latitude'] as num).toDouble(),
+            (booking['customer_longitude'] as num).toDouble(),
+          );
+    return Scaffold(
+      appBar: AppBar(title: const Text('Live Tracking')),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(18),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            MobileHeader(
-              city: city,
-              onNotifications: () => ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Your booking status is shown below.'),
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 3, 18, 18),
-              child: PageHeading(
-                'Live Tracking',
-                subtitle: 'Follow your service request',
-                onBack: () => Navigator.pop(context),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 15),
-              child: ServeCard(
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFFE481),
-                        borderRadius: BorderRadius.circular(15),
-                      ),
-                      child: const Icon(
-                        Icons.local_shipping,
-                        color: serveBlue,
-                        size: 28,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            bookingStatus(booking),
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w600,
-                              fontSize: 17,
-                            ),
-                          ),
-                          const Text(
-                            'Live location is not available for this booking.',
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: serveMuted,
-                              height: 1.5,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 13),
-            SizedBox(
-              height: 310,
-              child: ServiceAreaMap(city: city, enabled: mapsEnabled),
-            ),
-            Container(
-              padding: const EdgeInsets.all(18),
-              decoration: const BoxDecoration(
-                color: serveBackground,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(25)),
-              ),
+            ServeCard(
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      ProfessionalAvatar(
-                        booking['professional_name'] as String,
-                        size: 72,
-                      ),
-                      const SizedBox(width: 13),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              booking['professional_name'] as String,
-                              style: const TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              displayService(booking['service'] as String),
-                              style: const TextStyle(
-                                color: serveMuted,
-                                fontSize: 12,
-                              ),
-                            ),
-                            Text(
-                              bookingStatus(booking),
-                              style: const TextStyle(
-                                color: serveBlue,
-                                fontSize: 11,
-                              ),
-                            ),
-                          ],
+                  Text(
+                    bookingStatus(booking),
+                    style: const TextStyle(
+                      fontSize: 23,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  Text(
+                    live
+                        ? 'Worker location updated at ${formatTime(DateTime.parse(location!['updated_at'] as String).toLocal())}.'
+                        : trackingAvailability(booking, DateTime.now()),
+                  ),
+                  if (live)
+                    Text(
+                      'Location accuracy: about ${(location!['accuracy'] as num).round()} m',
+                      style: const TextStyle(color: serveMuted, fontSize: 11),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 18),
+            SizedBox(
+              height: 380,
+              child: LocationMap(
+                center: worker ?? customer ?? cityCenter(widget.city),
+                enabled: widget.mapsEnabled,
+                pins: [
+                  if (customer != null)
+                    LocationPin('customer', 'Your Location', customer),
+                  if (worker != null)
+                    LocationPin(
+                      'worker',
+                      booking['professional_name'] as String,
+                      worker,
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 18),
+            ServeCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    booking['professional_name'] as String,
+                    style: const TextStyle(
+                      fontSize: 21,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  Text(displayService(booking['service'] as String)),
+                  BookingContact(booking: booking, api: widget.api),
+                  Text(
+                    'Progress: ${booking['journey_status'] ?? 'not_started'}',
+                  ),
+                  for (final entry in [
+                    ('Request Sent', 'created_at'),
+                    ('Journey Started', 'journey_started_at'),
+                    ('Arrived', 'arrived_at'),
+                    ('Work Started', 'work_started_at'),
+                    ('Completed', 'work_completed_at'),
+                  ])
+                    if (booking[entry.$2] != null)
+                      ListTile(
+                        dense: true,
+                        leading: const Icon(
+                          Icons.check_circle_outline,
+                          color: Colors.green,
+                        ),
+                        title: Text(entry.$1),
+                        subtitle: Text(
+                          formatTime(
+                            DateTime.parse(
+                              booking[entry.$2] as String,
+                            ).toLocal(),
+                          ),
                         ),
                       ),
-                    ],
+                  Text(booking['address'] as String),
+                  const SizedBox(height: 10),
+                  Text(
+                    '${formatDate(DateTime.parse(booking['starts_at'] as String).toLocal())} · ${formatTime(DateTime.parse(booking['starts_at'] as String).toLocal())}',
                   ),
-                  const SizedBox(height: 20),
-                  if (error != null)
-                    Text(error!, style: const TextStyle(color: Colors.red)),
-                  OutlinedButton.icon(
-                    onPressed: reload,
-                    icon: const Icon(Icons.refresh),
-                    label: const Text('Refresh Status'),
-                  ),
-                  Row(
-                    children: List.generate(3, (i) {
-                      final completed = booking['status'] == 'completed';
-                      final accepted =
-                          booking['status'] == 'accepted' || completed;
-                      final done =
-                          i == 0 ||
-                          (i == 1 && accepted) ||
-                          (i == 2 && completed);
-                      return Expanded(
-                        child: Column(
-                          children: [
-                            Container(
-                              width: 33,
-                              height: 33,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: done
-                                    ? const Color(0xFF04A25B)
-                                    : const Color(0xFFD7E5F0),
-                              ),
-                              child: Icon(
-                                done ? Icons.check : Icons.schedule,
-                                color: Colors.white,
-                                size: 18,
-                              ),
-                            ),
-                            const SizedBox(height: 7),
-                            Text(
-                              ['Requested', 'Accepted', 'Completed'][i],
-                              style: const TextStyle(fontSize: 10),
-                            ),
-                          ],
-                        ),
-                      );
-                    }),
-                  ),
-                  const SizedBox(height: 20),
-                  const EmptyCare(
-                    icon: Icons.location_searching,
-                    title: 'Location sharing is not available yet',
-                    message:
-                        'A technician location and arrival estimate will appear only after live location sharing is enabled. The map shows your selected service area.',
-                  ),
-                  const SizedBox(height: 15),
-                  OutlinedButton.icon(
-                    onPressed: () => Navigator.pop(context),
-                    icon: const Icon(Icons.description_outlined),
-                    label: const Text('Back to My Jobs'),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Tracking is private to this confirmed visit. It stops after cancellation, completion or the visit end time.',
                   ),
                 ],
               ),
             ),
+            if (error != null)
+              Text(error!, style: const TextStyle(color: Colors.red)),
+            const SizedBox(height: 15),
+            OutlinedButton.icon(
+              onPressed: reload,
+              icon: const Icon(Icons.refresh),
+              label: const Text('Refresh Status'),
+            ),
           ],
         ),
       ),
-    ),
-  );
+    );
+  }
 }

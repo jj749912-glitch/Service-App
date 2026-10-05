@@ -59,12 +59,14 @@ class SolarBackdrop extends StatelessWidget {
 }
 
 class MobileHeader extends StatelessWidget {
+  final int unread;
   final String city;
   final ValueChanged<String>? onCity;
   final VoidCallback onNotifications;
   const MobileHeader({
     super.key,
     required this.city,
+    this.unread = 0,
     this.onCity,
     required this.onNotifications,
   });
@@ -133,10 +135,14 @@ class MobileHeader extends StatelessWidget {
         IconButton(
           onPressed: onNotifications,
           tooltip: 'Notifications',
-          icon: const Icon(
-            Icons.notifications_none_rounded,
-            color: Colors.white,
-            size: 25,
+          icon: Badge(
+            isLabelVisible: unread > 0,
+            label: Text('$unread'),
+            child: const Icon(
+              Icons.notifications_none_rounded,
+              color: Colors.white,
+              size: 25,
+            ),
           ),
           visualDensity: VisualDensity.compact,
         ),

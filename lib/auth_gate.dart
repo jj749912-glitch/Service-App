@@ -9,7 +9,12 @@ abstract class AppAuthApi {
   String? get userId;
   Stream<String?> get changes;
   Future<void> signIn(String email, String password);
-  Future<bool> signUp(String name, String email, String password);
+  Future<bool> signUp(
+    String name,
+    String email,
+    String password, {
+    String? qualification,
+  });
   Future<void> resendConfirmation(String email);
 }
 
@@ -35,11 +40,16 @@ class SupabaseAppAuth implements AppAuthApi {
   }
 
   @override
-  Future<bool> signUp(String name, String email, String password) async {
+  Future<bool> signUp(
+    String name,
+    String email,
+    String password, {
+    String? qualification,
+  }) async {
     final result = await client.auth.signUp(
       email: email,
       password: password,
-      data: {'full_name': name},
+      data: {'full_name': name, 'qualification': ?qualification},
       emailRedirectTo: redirect,
     );
     return result.session == null || userId == null;
@@ -128,12 +138,13 @@ class _LoginScreenState extends State<LoginScreen> {
   final name = TextEditingController(),
       email = TextEditingController(),
       password = TextEditingController(),
-      confirm = TextEditingController();
+      confirm = TextEditingController(),
+      qualification = TextEditingController();
   bool signup = false, busy = false, showPassword = false, confirmation = false;
   String? error, message;
   @override
   void dispose() {
-    for (final c in [name, email, password, confirm]) {
+    for (final c in [name, email, password, confirm, qualification]) {
       c.dispose();
     }
     super.dispose();
@@ -157,6 +168,7 @@ class _LoginScreenState extends State<LoginScreen> {
           name.text.trim(),
           email.text.trim(),
           password.text,
+          qualification: widget.worker ? qualification.text.trim() : null,
         );
         if (!mounted) return;
         if (confirmEmail) {
@@ -342,6 +354,23 @@ class _LoginScreenState extends State<LoginScreen> {
                                     : null,
                               ),
                               const SizedBox(height: 14),
+                            ],
+                            if (signup && widget.worker) ...[
+                              TextFormField(
+                                controller: qualification,
+                                enabled: !busy,
+                                maxLength: 2000,
+                                maxLines: 2,
+                                decoration: const InputDecoration(
+                                  labelText: 'Qualification',
+                                  hintText:
+                                      'Education, trade training or relevant certification',
+                                ),
+                                validator: (v) => (v?.trim().length ?? 0) < 2
+                                    ? 'Enter your qualification.'
+                                    : null,
+                              ),
+                              const SizedBox(height: 13),
                             ],
                             TextFormField(
                               controller: email,

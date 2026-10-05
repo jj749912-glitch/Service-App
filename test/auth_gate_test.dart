@@ -14,6 +14,7 @@ class TestAuth implements AppAuthApi {
   bool fail = false;
   int signIns = 0, signUps = 0;
   List<String>? registration;
+  String? submittedQualification;
   @override
   Stream<String?> get changes => events.stream;
   void session(String? id) {
@@ -29,9 +30,15 @@ class TestAuth implements AppAuthApi {
   }
 
   @override
-  Future<bool> signUp(String name, String email, String password) async {
+  Future<bool> signUp(
+    String name,
+    String email,
+    String password, {
+    String? qualification,
+  }) async {
     signUps++;
     registration = [name, email, password];
+    submittedQualification = qualification;
     return true;
   }
 

@@ -1,11 +1,13 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../app.dart' show Professional;
 import '../admin_portal.dart';
+import '../tracking.dart';
 
 class CustomerSnapshot {
   final String userId, name, email, phone;
   final List<Professional> professionals;
   final List<Map<String, dynamic>> bookings;
+  final List<Map<String, dynamic>> notifications;
   final bool admin;
   const CustomerSnapshot({
     this.userId = '',
@@ -14,6 +16,7 @@ class CustomerSnapshot {
     this.phone = '',
     this.professionals = const [],
     this.bookings = const [],
+    this.notifications = const [],
     this.admin = false,
   });
 }
@@ -24,16 +27,23 @@ abstract class MobileCustomerApi {
   Future<Map<String, dynamic>> book(
     Professional professional,
     DateTime start,
-    int hours,
+    num hours,
     String address,
-    String notes,
-  );
+    String notes, {
+    double? latitude,
+    double? longitude,
+  });
   Future<void> cancel(String bookingId);
   Future<void> rename(String name);
   Future<void> signOut();
 }
 
-class SupabaseMobileCustomerApi implements MobileCustomerApi {
+class SupabaseMobileCustomerApi
+    implements
+        MobileCustomerApi,
+        BookingUpdatesApi,
+        NearbyWorkersApi,
+        WorkerContactApi {
   final SupabaseClient client;
   SupabaseMobileCustomerApi(this.client);
   @override
@@ -52,6 +62,12 @@ class SupabaseMobileCustomerApi implements MobileCustomerApi {
           .eq('customer_id', user.id)
           .order('starts_at', ascending: false),
       SupabaseAdminApi(client).hasAccess(),
+      client
+          .from('booking_notifications')
+          .select()
+          .eq('user_id', user.id)
+          .order('created_at', ascending: false)
+          .limit(100),
     ]);
     return CustomerSnapshot(
       userId: user.id,
@@ -65,6 +81,9 @@ class SupabaseMobileCustomerApi implements MobileCustomerApi {
           .map((r) => Map<String, dynamic>.from(r))
           .toList(),
       admin: results[2] as bool,
+      notifications: (results[3] as List)
+          .map((r) => Map<String, dynamic>.from(r))
+          .toList(),
     );
   }
 
@@ -79,10 +98,12 @@ class SupabaseMobileCustomerApi implements MobileCustomerApi {
   Future<Map<String, dynamic>> book(
     Professional professional,
     DateTime start,
-    int hours,
+    num hours,
     String address,
-    String notes,
-  ) async {
+    String notes, {
+    double? latitude,
+    double? longitude,
+  }) async {
     if (client.auth.currentUser == null) {
       throw const AuthException('Sign in to continue.');
     }
@@ -95,9 +116,12 @@ class SupabaseMobileCustomerApi implements MobileCustomerApi {
           'service': professional.service,
           'starts_at': start.toUtc().toIso8601String(),
           'hours': hours,
+          'duration_minutes': (hours * 60).round(),
           'address': address.trim(),
           'notes': notes.trim(),
-          'total': professional.rate * hours,
+          'customer_latitude': latitude,
+          'customer_longitude': longitude,
+          'total': (professional.rate * hours).ceil(),
           'status': 'requested',
         })
         .select()
@@ -116,6 +140,51 @@ class SupabaseMobileCustomerApi implements MobileCustomerApi {
 
   @override
   Future<void> signOut() => client.auth.signOut(scope: SignOutScope.local);
+
+  @override
+  Stream<void> get bookingChanges => client
+      .from('bookings')
+      .stream(primaryKey: ['id'])
+      .eq('customer_id', client.auth.currentUser!.id)
+      .map((_) {});
+  @override
+  Future<void> readNotifications(List<String> ids) async {
+    if (ids.isEmpty) return;
+    await client
+        .from('booking_notifications')
+        .update({'read_at': DateTime.now().toUtc().toIso8601String()})
+        .inFilter('id', ids)
+        .eq('user_id', client.auth.currentUser!.id);
+  }
+
+  @override
+  Future<Map<String, dynamic>?> workerLocation(String bookingId) async =>
+      await client
+          .from('worker_locations')
+          .select()
+          .eq('booking_id', bookingId)
+          .maybeSingle();
+  @override
+  Future<List<Map<String, dynamic>>> availableWorkers() async => await client
+      .from('worker_availability')
+      .select()
+      .gte(
+        'updated_at',
+        DateTime.now()
+            .toUtc()
+            .subtract(const Duration(minutes: 2))
+            .toIso8601String(),
+      );
+
+  @override
+  Future<String?> workerPhone(String professionalId) async {
+    final row = await client
+        .from('worker_contacts')
+        .select('phone')
+        .eq('professional_id', professionalId)
+        .maybeSingle();
+    return row?['phone'] as String?;
+  }
 }
 
 String displayService(String value) => switch (value) {
@@ -130,7 +199,7 @@ String displayService(String value) => switch (value) {
 String bookingStatus(Map<String, dynamic> booking) =>
     switch (booking['status']) {
       'requested' => 'Requested',
-      'accepted' => 'Scheduled',
+      'accepted' => 'Confirmed',
       'completed' => 'Completed',
       'cancelled' => 'Cancelled',
       _ => 'Awaiting update',
