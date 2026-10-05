@@ -20,15 +20,15 @@ Customer booking:
 
 1. Choose **Book a Service** or **Choose Location & Find Workers** in Explore.
 2. Enter the full service address and select its location using GPS or by tapping the map. Ernakulam is initially selected; Thrissur is also supported.
-3. Select a service. All six categories are available.
-4. Compare real approved, online workers within 50 km of the selected pin. Sort by distance, rate or actual rating; open profile/reviews, then select a worker.
-5. Enter a future date, a custom start time in `HH:mm` format and a custom duration of 15–720 minutes. Confirm and send the request.
+3. Select one or more services. All six categories are available; tap a selected card again to remove it.
+4. Choose **One worker for all services** or **Choose a worker for each service**. The first choice lists workers offering every selected service. For separate workers, select each service chip and assign its worker. Compare real approved, online workers within 50 km of the pin. Cards list all their actual services and rates; profiles show submitted experience, qualification and reviews.
+5. Enter a future date, a custom start time in `HH:mm` format and 15–720 minutes for each service. A worker's combined visit is limited to 720 minutes. Services assigned to the same worker form one appointment; different workers start at the selected time and receive independent appointments. Confirm and send the requests.
 6. The assigned worker sees the request under **Jobs → New** and accepts or declines it. Declines are stored and shown as Cancelled.
 7. Acceptance produces a saved customer notification and shows **Confirmed** under **My Jobs → Scheduled**. Requested appointments remain Requested until accepted.
 8. On the appointment day, open **View Details → Show Worker Phone** to view/call the assigned worker. The server restricts access to that customer and that calendar day in India, for accepted/completed appointments. Numbers are not in the public directory.
 9. The worker starts the journey, marks arrival, starts the job and submits completion with actual work notes. The customer sees saved milestones and can submit one review after completion. Actual reviews determine ratings and review counts.
 
-The server calculates the selected service's price as `ceil(hourly_rate × duration_minutes / 60)` and derives the end time. It rejects unsupported services, unapproved workers, invalid times and overlapping active bookings. Clients cannot alter saved price/address/customer or forge someone else's job transitions.
+The server calculates each service's price as `ceil(hourly_rate × duration_minutes / 60)`, sums the service lines and derives each worker's end time. A multi-worker request saves atomically; if any appointment fails, the entire request rolls back. Retrying an unchanged request returns its saved appointments without duplicates. It rejects unsupported/duplicate services, unapproved workers, invalid times and overlapping active bookings. Clients cannot alter saved service lines, price/address/customer or forge someone else's job transitions.
 
 ## Live tracking, messages and pilot limits
 
@@ -117,10 +117,11 @@ Set-Location ..
 flutter build web --release --no-wasm-dry-run --dart-define-from-file=supabase-config.json
 ```
 
-The connected Supabase project is `usgdrzubndfvfarkklok`. Applied migration history is in its dashboard. `backend/` holds reference upgrade SQL; **do not rerun upgrades on the initialized project**. The latest upgrade is `backend/multi-service-scheduling-tracking.sql`, covering multi-service profiles, custom durations, saved notifications, availability, private tracking/contacts, job milestones and booking messages.
+The connected Supabase project is `usgdrzubndfvfarkklok`. Applied migration history is in its dashboard. `backend/` holds reference upgrade SQL; **do not rerun upgrades on the initialized project**. `backend/multi-service-scheduling-tracking.sql` covers multi-service profiles, custom durations, saved notifications, availability, private tracking/contacts, job milestones and booking messages. The subsequent `backend/customer-multi-service-bookings.sql` adds customer multi-service appointments, grouped worker requests, server-priced service lines and safe retries.
 
 Verification scripts must be executed in full, including their final `ROLLBACK`:
 
+- `backend/customer-multi-service-bookings-check.sql`: combined/separate workers, line prices/durations, atomic failures, retries, independent decisions and access isolation.
 - `backend/multi-service-workflow-check.sql`: application atomicity, service rates/duration, overlap, decisions, notification ownership, tracking window, private contacts, milestones, messages and completed-only reviews.
 - `backend/booking-workflow-check.sql`: base customer/worker request synchronization and role isolation.
 - `backend/admin-access-check.sql`: administrator access, approval, profile editing, suspension, restoration and audit.
@@ -152,7 +153,7 @@ For a manual upload, build both apps locally, copy `worker_app/build/web` into `
 
 The testing Supabase project was created at the authorized $0/month quote. This implementation adds no paid SMS, maps, payment or background-tracking integration. Monitor database, bandwidth and realtime usage in Supabase; free-tier quotas are not a capacity guarantee. See [current Supabase pricing](https://supabase.com/pricing). Netlify and app-store accounts have their own terms.
 
-Owner-provisioned administrators access Profile → Admin Dashboard or `https://servicefacilities.netlify.app/#/admin`. Membership is held in `private.app_admins`, never user-editable metadata. The app cannot self-grant administrator access. Approval should follow real identity/qualification checks, not an unchecked design badge. Suspending a worker blocks job access and removes their discovery visibility, including with existing client tokens.
+Owner-provisioned administrators access **Admin Dashboard** in the desktop sidebar or at the top of Profile's account controls, or `https://servicefacilities.netlify.app/#/admin`. The entry is visible to signed-in accounts; the server allows access only to provisioned administrators with a valid session. Sign in using the owner-provisioned administrator account. Membership is held in `private.app_admins`, never user-editable metadata. The app cannot self-grant administrator access. Approval should follow real identity/qualification checks, not an unchecked design badge. Suspending a worker blocks job access and removes their discovery visibility, including with existing client tokens.
 
 SMTP and email redirects are configured in Supabase. Allow both exact customer and worker production URLs. Hosting does not provide SMTP. `BREVO_SETUP.md` contains the earlier provider guide; use the sender provider chosen for this project and enter credentials only in the Supabase dashboard.
 

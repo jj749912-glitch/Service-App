@@ -8,6 +8,7 @@ import 'tracking.dart';
 import 'worker_tracking.dart';
 import 'mobile/components.dart';
 import 'mobile/customer_data.dart';
+import 'mobile/service_booking.dart';
 import 'mobile/design.dart';
 import 'mobile/location_map.dart';
 import 'booking_chat.dart';
@@ -93,7 +94,7 @@ class _WorkerDashboardState extends State<WorkerDashboard> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        displayService(job['service'] as String),
+                        bookingServicesLabel(job),
                         style: const TextStyle(
                           fontWeight: FontWeight.w600,
                           fontSize: 16,
@@ -461,7 +462,7 @@ class _WorkerDashboardState extends State<WorkerDashboard> {
         ServeCard(
           child: ListTile(
             leading: const Icon(Icons.chat_bubble_outline, color: serveBlue),
-            title: Text(displayService(j['service'] as String)),
+            title: Text(bookingServicesLabel(j)),
             subtitle: Text(j['address'] as String),
             trailing: const Icon(Icons.chevron_right),
             onTap: widget.liveEnabled
@@ -688,7 +689,7 @@ class _WorkerJobDetailsState extends State<WorkerJobDetails> {
                     children: [
                       ServiceArt(job['service'] as String, size: 70),
                       Text(
-                        displayService(job['service'] as String),
+                        bookingServicesLabel(job),
                         style: const TextStyle(
                           fontSize: 24,
                           fontWeight: FontWeight.w600,
@@ -704,6 +705,7 @@ class _WorkerJobDetailsState extends State<WorkerJobDetails> {
                       if ((job['notes'] as String? ?? '').isNotEmpty)
                         Text('Customer notes: ${job['notes']}'),
                       Text('Labour estimate: ₹${job['total']}'),
+                      BookingServiceLines(job),
                     ],
                   ),
                 ),

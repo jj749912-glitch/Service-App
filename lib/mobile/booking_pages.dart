@@ -9,6 +9,7 @@ import 'package:latlong2/latlong.dart';
 import '../tracking.dart';
 import 'location_map.dart';
 import 'booking_contact.dart';
+import 'service_booking.dart';
 
 class MobileSchedulePage extends StatefulWidget {
   final Professional professional;
@@ -831,7 +832,7 @@ class _MobileBookingDetailsState extends State<MobileBookingDetails> {
                     ServiceArt(booking['service'] as String, size: 80),
                     const SizedBox(height: 12),
                     Text(
-                      displayService(booking['service'] as String),
+                      bookingServicesLabel(booking),
                       textAlign: TextAlign.center,
                       style: const TextStyle(
                         fontSize: 24,
@@ -839,6 +840,7 @@ class _MobileBookingDetailsState extends State<MobileBookingDetails> {
                       ),
                     ),
                     const SizedBox(height: 15),
+                    BookingServiceLines(booking),
                     ListTile(
                       leading: const Icon(
                         Icons.person_outline,
@@ -1091,7 +1093,7 @@ class _MobileTrackingPageState extends State<MobileTrackingPage> {
                       fontWeight: FontWeight.w600,
                     ),
                   ),
-                  Text(displayService(booking['service'] as String)),
+                  Text(bookingServicesLabel(booking)),
                   BookingContact(booking: booking, api: widget.api),
                   Text(
                     'Progress: ${booking['journey_status'] ?? 'not_started'}',

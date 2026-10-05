@@ -2,6 +2,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../app.dart' show Professional;
 import '../admin_portal.dart';
 import '../tracking.dart';
+import 'service_booking.dart';
+import 'package:latlong2/latlong.dart';
 
 class CustomerSnapshot {
   final String userId, name, email, phone;
@@ -43,9 +45,34 @@ class SupabaseMobileCustomerApi
         MobileCustomerApi,
         BookingUpdatesApi,
         NearbyWorkersApi,
-        WorkerContactApi {
+        WorkerContactApi,
+        MultiServiceBookingApi {
   final SupabaseClient client;
   SupabaseMobileCustomerApi(this.client);
+  @override
+  Future<List<Map<String, dynamic>>> bookServices({
+    required String requestId,
+    required DateTime start,
+    required String address,
+    required String notes,
+    required LatLng location,
+    required List<Map<String, dynamic>> requests,
+  }) async {
+    final result = await client.rpc(
+      'request_service_bookings',
+      params: {
+        'p_group': requestId,
+        'p_start': start.toUtc().toIso8601String(),
+        'p_address': address.trim(),
+        'p_notes': notes.trim(),
+        'p_latitude': location.latitude,
+        'p_longitude': location.longitude,
+        'p_requests': requests,
+      },
+    );
+    return (result as List).map((r) => Map<String, dynamic>.from(r)).toList();
+  }
+
   @override
   Future<CustomerSnapshot> load() async {
     final user = client.auth.currentUser;

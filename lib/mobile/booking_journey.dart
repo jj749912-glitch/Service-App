@@ -11,6 +11,7 @@ import 'customer_data.dart';
 import 'design.dart';
 import 'location_map.dart';
 import '../tracking.dart';
+import 'service_booking.dart';
 
 class BookingJourney extends StatefulWidget {
   final MobileCustomerApi api;
@@ -31,6 +32,19 @@ class _BookingJourneyState extends State<BookingJourney> {
   final form = GlobalKey<FormState>();
   final address = TextEditingController();
   late String city, service;
+  final selectedServices = <String>{};
+  final assignments = <String, Professional>{};
+  bool separateWorkers = false;
+  bool get ready => separateWorkers
+      ? selectedServices.every(assignments.containsKey)
+      : chosen != null;
+  void selectWorker(Professional p) => setState(() {
+    if (separateWorkers) {
+      assignments[service] = p;
+    } else {
+      chosen = p;
+    }
+  });
   String sort = 'Nearest';
   LatLng? location;
   int step = 0;
@@ -47,6 +61,7 @@ class _BookingJourneyState extends State<BookingJourney> {
     service = offeredServices.contains(widget.initialService)
         ? widget.initialService
         : 'Solar cleaning';
+    selectedServices.add(service);
     timer = Timer.periodic(const Duration(seconds: 15), (_) {
       if (step == 2 && !busy) loadWorkers();
     });
@@ -137,7 +152,9 @@ class _BookingJourneyState extends State<BookingJourney> {
                 p.id == point['professional_id'] &&
                 p.verified &&
                 p.city == city &&
-                p.offers(service),
+                (separateWorkers
+                    ? p.offers(service)
+                    : selectedServices.every(p.offers)),
           )
           .firstOrNull;
       if (worker == null) continue;
@@ -179,14 +196,63 @@ class _BookingJourneyState extends State<BookingJourney> {
         error = null;
       });
     } else if (step == 1) {
+      if (selectedServices.isEmpty) {
+        setState(() => error = 'Select at least one service.');
+        return;
+      }
       setState(() {
         step = 2;
         chosen = null;
+        assignments.clear();
+        service = selectedServices.first;
       });
       await loadWorkers();
-    } else if (chosen != null) {
+    } else if (ready) {
+      if (selectedServices.length > 1) {
+        final selected = separateWorkers
+            ? Map<String, Professional>.from(assignments)
+            : {for (final s in selectedServices) s: chosen!};
+        for (final entry in selected.entries) {
+          if (!entry.value.offers(entry.key) ||
+              !availability.any(
+                (p) =>
+                    p['professional_id'] == entry.value.id &&
+                    DateTime.now().difference(
+                          DateTime.tryParse(p['updated_at'] as String? ?? '') ??
+                              DateTime(2000),
+                        ) <
+                        const Duration(minutes: 2),
+              )) {
+            setState(
+              () => error =
+                  'A selected worker is no longer available. Refresh and select workers again.',
+            );
+            return;
+          }
+        }
+        if (widget.api is! MultiServiceBookingApi) {
+          setState(
+            () => error =
+                'Multi-service booking is unavailable. Please update the app.',
+          );
+          return;
+        }
+        final record = await Navigator.of(context).push<Map<String, dynamic>>(
+          MaterialPageRoute(
+            builder: (_) => MultiServiceSchedulePage(
+              api: widget.api as MultiServiceBookingApi,
+              assignments: selected,
+              address: address.text.trim(),
+              location: location!,
+            ),
+          ),
+        );
+        if (record != null && mounted) Navigator.pop(context, record);
+        return;
+      }
+      final selectedWorker = separateWorkers ? assignments[service] : chosen;
       final available = workers
-          .where((w) => w.worker.id == chosen!.id)
+          .where((w) => w.worker.id == selectedWorker!.id)
           .firstOrNull;
       if (available == null) {
         setState(
@@ -289,7 +355,8 @@ class _BookingJourneyState extends State<BookingJourney> {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const CareSection('Select a Service'),
+          const CareSection('Select Your Services'),
+          const Text('Choose one or more services for this visit.'),
           Text('Service address: ${address.text}'),
           const SizedBox(height: 16),
           Wrap(
@@ -300,9 +367,14 @@ class _BookingJourneyState extends State<BookingJourney> {
                   (s) => SizedBox(
                     width: 145,
                     child: InkWell(
-                      onTap: () => setState(() => service = s),
+                      onTap: () => setState(() {
+                        if (!selectedServices.add(s)) {
+                          selectedServices.remove(s);
+                        }
+                        error = null;
+                      }),
                       child: ServeCard(
-                        color: service == s
+                        color: selectedServices.contains(s)
                             ? const Color(0xFFE0F6EA)
                             : Colors.white,
                         child: Column(
@@ -313,7 +385,7 @@ class _BookingJourneyState extends State<BookingJourney> {
                               displayService(s),
                               textAlign: TextAlign.center,
                             ),
-                            if (service == s)
+                            if (selectedServices.contains(s))
                               const Icon(
                                 Icons.check_circle,
                                 color: Colors.green,
@@ -346,7 +418,7 @@ class _BookingJourneyState extends State<BookingJourney> {
               w.worker.id,
               w.worker.name,
               w.point,
-              onTap: () => setState(() => chosen = w.worker),
+              onTap: () => selectWorker(w.worker),
             ),
           ),
         ],
@@ -357,7 +429,7 @@ class _BookingJourneyState extends State<BookingJourney> {
       children: [
         const CareSection('Nearby Professionals'),
         Text(
-          '${displayService(service)} · within 50 km · approximate shared locations',
+          '${separateWorkers ? displayService(service) : selectedServices.map(displayService).join(' + ')} · within 50 km · approximate shared locations',
           style: const TextStyle(color: serveMuted, fontSize: 12),
         ),
         const SizedBox(height: 12),
@@ -372,7 +444,9 @@ class _BookingJourneyState extends State<BookingJourney> {
           Padding(
             padding: const EdgeInsets.only(bottom: 12),
             child: ServeCard(
-              color: chosen?.id == w.worker.id
+              color:
+                  (separateWorkers ? assignments[service]?.id : chosen?.id) ==
+                      w.worker.id
                   ? const Color(0xFFE9F6FF)
                   : Colors.white,
               child: Column(
@@ -401,7 +475,10 @@ class _BookingJourneyState extends State<BookingJourney> {
                         ),
                       ),
                       Icon(
-                        chosen?.id == w.worker.id
+                        (separateWorkers
+                                    ? assignments[service]?.id
+                                    : chosen?.id) ==
+                                w.worker.id
                             ? Icons.radio_button_checked
                             : Icons.radio_button_off,
                         color: serveBlue,
@@ -413,6 +490,20 @@ class _BookingJourneyState extends State<BookingJourney> {
                     maxLines: 3,
                     overflow: TextOverflow.ellipsis,
                   ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: [
+                      for (final option in w.worker.offerings)
+                        Chip(
+                          label: Text(
+                            '${displayService(option.service)} · ₹${option.rate}/hr',
+                            style: const TextStyle(fontSize: 11),
+                          ),
+                        ),
+                    ],
+                  ),
                   Wrap(
                     spacing: 12,
                     children: [
@@ -421,7 +512,7 @@ class _BookingJourneyState extends State<BookingJourney> {
                         child: const Text('View Profile & Reviews'),
                       ),
                       FilledButton(
-                        onPressed: () => setState(() => chosen = w.worker),
+                        onPressed: () => selectWorker(w.worker),
                         child: const Text('Select Worker'),
                       ),
                     ],
@@ -434,6 +525,52 @@ class _BookingJourneyState extends State<BookingJourney> {
     );
     return Column(
       children: [
+        if (selectedServices.length > 1) ...[
+          Wrap(
+            spacing: 10,
+            children: [
+              ChoiceChip(
+                label: const Text('One worker for all services'),
+                selected: !separateWorkers,
+                onSelected: (_) => setState(() {
+                  separateWorkers = false;
+                  chosen = null;
+                  assignments.clear();
+                }),
+              ),
+              ChoiceChip(
+                label: const Text('Choose a worker for each service'),
+                selected: separateWorkers,
+                onSelected: (_) => setState(() {
+                  separateWorkers = true;
+                  chosen = null;
+                  assignments.clear();
+                }),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            separateWorkers
+                ? 'Select a worker for every service below.'
+                : 'Only workers who offer every selected service are shown.',
+          ),
+          if (separateWorkers)
+            Wrap(
+              spacing: 8,
+              children: [
+                for (final s in selectedServices)
+                  ChoiceChip(
+                    label: Text(
+                      '${displayService(s)}${assignments[s] == null ? '' : ' ✓ ${assignments[s]!.name}'}',
+                    ),
+                    selected: service == s,
+                    onSelected: (_) => setState(() => service = s),
+                  ),
+              ],
+            ),
+          const SizedBox(height: 15),
+        ],
         Wrap(
           spacing: 10,
           children: ['Nearest', 'Top Rated', 'Lowest Price']
@@ -488,6 +625,10 @@ class _BookingJourneyState extends State<BookingJourney> {
                 Text(p.qualification),
                 Text('${p.years} years experience · ₹${p.rate}/hour'),
                 Text(p.bio),
+                for (final option in p.offerings)
+                  Text(
+                    '${displayService(option.service)} · ₹${option.rate}/hr · ${option.years} years experience\n${option.details}',
+                  ),
                 const SizedBox(height: 15),
                 const Text(
                   'Reviews',
@@ -510,7 +651,7 @@ class _BookingJourneyState extends State<BookingJourney> {
           ),
           FilledButton(
             onPressed: () {
-              setState(() => chosen = p);
+              selectWorker(p);
               Navigator.pop(ctx);
             },
             child: const Text('Select Worker'),
@@ -599,9 +740,7 @@ class _BookingJourneyState extends State<BookingJourney> {
                       child: const Text('Refresh Workers'),
                     ),
                   FilledButton(
-                    onPressed: busy || (step == 2 && chosen == null)
-                        ? null
-                        : next,
+                    onPressed: busy || (step == 2 && !ready) ? null : next,
                     child: Text(
                       [
                         'Confirm Location',

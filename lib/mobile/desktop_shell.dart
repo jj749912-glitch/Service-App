@@ -12,7 +12,7 @@ class DesktopCustomerShell extends StatelessWidget {
   final ValueChanged<int> onSelect;
   final ValueChanged<String> onCity;
   final ValueChanged<String> onSearch;
-  final VoidCallback onBooking, onNotifications;
+  final VoidCallback onBooking, onNotifications, onAdmin, onSignOut;
   final Widget home, content;
   const DesktopCustomerShell({
     super.key,
@@ -25,6 +25,8 @@ class DesktopCustomerShell extends StatelessWidget {
     required this.onSearch,
     required this.onBooking,
     required this.onNotifications,
+    required this.onAdmin,
+    required this.onSignOut,
     required this.home,
     required this.content,
   });
@@ -126,6 +128,11 @@ class DesktopCustomerShell extends StatelessWidget {
                       ),
                     const Spacer(),
                     ListTile(
+                      leading: const Icon(Icons.admin_panel_settings_outlined),
+                      title: const Text('Admin Dashboard'),
+                      onTap: onAdmin,
+                    ),
+                    ListTile(
                       leading: const Icon(Icons.help_outline),
                       title: const Text('Help & Support'),
                       onTap: () => onSelect(3),
@@ -134,6 +141,16 @@ class DesktopCustomerShell extends StatelessWidget {
                       leading: const Icon(Icons.settings_outlined),
                       title: const Text('Account Settings'),
                       onTap: () => onSelect(4),
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: onSignOut,
+                      icon: const Icon(Icons.logout),
+                      label: const Text('Sign Out'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: serveNavy,
+                        backgroundColor: Colors.white,
+                        side: const BorderSide(color: serveNavy),
+                      ),
                     ),
                   ],
                 ),
@@ -145,7 +162,7 @@ class DesktopCustomerShell extends StatelessWidget {
                       ? home
                       : Container(
                           decoration: BoxDecoration(
-                            color: const Color(0xFF077BB8),
+                            color: serveBackground,
                             borderRadius: BorderRadius.circular(24),
                           ),
                           child: content,
@@ -291,9 +308,12 @@ class DesktopHome extends StatelessWidget {
                       subtitle: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(displayService(p.service)),
+                          for (final option in p.offerings)
+                            Text(
+                              '${displayService(option.service)} · ₹${option.rate}/hr',
+                              style: const TextStyle(fontSize: 12),
+                            ),
                           RatingLine(p),
-                          Text('₹${p.rate}/hour'),
                         ],
                       ),
                       trailing: IconButton(

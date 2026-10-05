@@ -14,6 +14,7 @@ import '../tracking.dart';
 import 'booking_journey.dart';
 import 'desktop_shell.dart';
 import '../booking_chat.dart';
+import 'service_booking.dart';
 
 const mobileServices = [
   'Solar cleaning',
@@ -395,6 +396,8 @@ class _MobileCustomerAppState extends State<MobileCustomerApp> {
             onSelect: selectTab,
             onBooking: () => startBooking(),
             onNotifications: notifications,
+            onAdmin: () => Navigator.of(context).pushNamed('/admin'),
+            onSignOut: signOut,
             onCity: (c) => setState(() => city = c),
             onSearch: (value) => setState(() {
               query = value;
@@ -864,7 +867,7 @@ class _MobileCustomerAppState extends State<MobileCustomerApp> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      displayService(b['service'] as String),
+                      bookingServicesLabel(b),
                       style: const TextStyle(
                         fontSize: 17,
                         fontWeight: FontWeight.w600,
@@ -1126,7 +1129,7 @@ class _MobileCustomerAppState extends State<MobileCustomerApp> {
                     size: 46,
                   ),
                   title: Text(b['professional_name'] as String),
-                  subtitle: Text(displayService(b['service'] as String)),
+                  subtitle: Text(bookingServicesLabel(b)),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: widget.api == null
                       ? () => Navigator.push(
@@ -1281,6 +1284,32 @@ class _MobileCustomerAppState extends State<MobileCustomerApp> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             CareSection('Account Overview', onAll: () => selectTab(2)),
+            ServeCard(
+              child: Material(
+                color: Colors.white,
+                child: ListTile(
+                  leading: const Icon(
+                    Icons.admin_panel_settings_outlined,
+                    color: serveNavy,
+                  ),
+                  title: const Text(
+                    'Admin Dashboard',
+                    style: TextStyle(
+                      color: serveNavy,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  subtitle: Text(
+                    data.admin
+                        ? 'Manage workers and service bookings'
+                        : 'Sign in with your authorized administrator account',
+                  ),
+                  trailing: const Icon(Icons.chevron_right, color: serveNavy),
+                  onTap: () => Navigator.of(context).pushNamed('/admin'),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
             Row(
               children: [
                 overview(
@@ -1341,16 +1370,19 @@ class _MobileCustomerAppState extends State<MobileCustomerApp> {
             const SizedBox(height: 17),
             SolarOffer(plan: true, onTap: plan),
             const SizedBox(height: 15),
-            if (data.admin)
-              FilledButton.icon(
-                onPressed: () => Navigator.of(context).pushNamed('/admin'),
-                icon: const Icon(Icons.admin_panel_settings_outlined),
-                label: const Text('Admin Dashboard'),
-              ),
-            TextButton.icon(
+            OutlinedButton.icon(
               onPressed: signOut,
               icon: const Icon(Icons.logout),
-              label: const Text('Sign Out'),
+              label: const Text(
+                'Sign Out',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              ),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: serveNavy,
+                backgroundColor: Colors.white,
+                side: const BorderSide(color: serveNavy),
+                minimumSize: const Size(0, 52),
+              ),
             ),
           ],
         ),

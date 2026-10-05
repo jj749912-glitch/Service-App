@@ -404,6 +404,19 @@ class ProfessionalTile extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              for (final option in p.offerings)
+                Chip(
+                  label: Text(
+                    '${displayService(option.service)} · ₹${option.rate}/hr',
+                    style: const TextStyle(fontSize: 11),
+                  ),
+                ),
+            ],
+          ),
           Row(
             children: [
               Expanded(
