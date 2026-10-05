@@ -489,7 +489,14 @@ class PageHeading extends StatelessWidget {
   final String title;
   final String? subtitle;
   final VoidCallback? onBack;
-  const PageHeading(this.title, {super.key, this.subtitle, this.onBack});
+  final bool onLightBackground;
+  const PageHeading(
+    this.title, {
+    super.key,
+    this.subtitle,
+    this.onBack,
+    this.onLightBackground = false,
+  });
   @override
   Widget build(BuildContext context) => Row(
     crossAxisAlignment: CrossAxisAlignment.start,
@@ -498,7 +505,10 @@ class PageHeading extends StatelessWidget {
         IconButton(
           onPressed: onBack,
           tooltip: 'Back',
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          icon: Icon(
+            Icons.arrow_back,
+            color: onLightBackground ? serveNavy : Colors.white,
+          ),
           padding: EdgeInsets.zero,
           constraints: const BoxConstraints(minWidth: 32, minHeight: 40),
         ),
@@ -508,8 +518,8 @@ class PageHeading extends StatelessWidget {
           children: [
             Text(
               title,
-              style: const TextStyle(
-                color: Colors.white,
+              style: TextStyle(
+                color: onLightBackground ? serveNavy : Colors.white,
                 fontSize: 27,
                 fontWeight: FontWeight.w600,
                 height: 1.25,
@@ -520,8 +530,8 @@ class PageHeading extends StatelessWidget {
               const SizedBox(height: 5),
               Text(
                 subtitle!,
-                style: const TextStyle(
-                  color: Colors.white,
+                style: TextStyle(
+                  color: onLightBackground ? serveMuted : Colors.white,
                   fontSize: 13,
                   height: 1.6,
                 ),

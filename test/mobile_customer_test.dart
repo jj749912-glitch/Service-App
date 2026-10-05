@@ -126,6 +126,36 @@ void main() {
 
   Widget shell(Widget child) =>
       MaterialApp(theme: solarServeTheme(), home: child);
+  testWidgets(
+    'Desktop Jobs Messages and Profile headings contrast with their actual light panels',
+    (t) async {
+      mobileSize(t, 1440);
+      await t.pumpWidget(
+        shell(MobileCustomerApp(api: TestCustomerApi(), mapsEnabled: false)),
+      );
+      await t.pumpAndSettle();
+      for (final tab in ['Jobs', 'Messages', 'Profile']) {
+        await t.tap(find.text(tab).last);
+        await t.pumpAndSettle();
+        final heading = find.byType(PageHeading);
+        expect(t.widget<PageHeading>(heading).onLightBackground, isTrue);
+        final text = t.widgetList<RichText>(
+          find.descendant(of: heading, matching: find.byType(RichText)),
+        );
+        for (final rich in text) {
+          final foreground = rich.text.style!.color!;
+          final a = foreground.computeLuminance(),
+              b = serveBackground.computeLuminance();
+          expect(
+            ((a > b ? a : b) + .05) / ((a < b ? a : b) + .05),
+            greaterThanOrEqualTo(4.5),
+          );
+        }
+        expect(t.takeException(), isNull);
+      }
+      await t.pumpWidget(const SizedBox.shrink());
+    },
+  );
   for (final width in [390.0, 1440.0]) {
     for (final admin in [false, true]) {
       testWidgets(

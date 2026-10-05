@@ -789,10 +789,11 @@ class _MobileCustomerAppState extends State<MobileCustomerApp> {
   Widget jobs() => Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
-      const Padding(
-        padding: EdgeInsets.fromLTRB(18, 7, 18, 24),
+      Padding(
+        padding: const EdgeInsets.fromLTRB(18, 7, 18, 24),
         child: PageHeading(
           'My Jobs',
+          onLightBackground: MediaQuery.sizeOf(context).width >= 900,
           subtitle: 'Manage and track all your solar services\nin one place.',
         ),
       ),
@@ -1002,8 +1003,9 @@ class _MobileCustomerAppState extends State<MobileCustomerApp> {
         padding: const EdgeInsets.fromLTRB(18, 7, 18, 20),
         child: Column(
           children: [
-            const PageHeading(
+            PageHeading(
               'Messages',
+              onLightBackground: MediaQuery.sizeOf(context).width >= 900,
               subtitle: 'Chat with professionals and get support',
             ),
             const SizedBox(height: 13),
@@ -1156,10 +1158,11 @@ class _MobileCustomerAppState extends State<MobileCustomerApp> {
   Widget profile() => Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
-      const Padding(
-        padding: EdgeInsets.fromLTRB(18, 7, 18, 23),
+      Padding(
+        padding: const EdgeInsets.fromLTRB(18, 7, 18, 23),
         child: PageHeading(
           'Profile',
+          onLightBackground: MediaQuery.sizeOf(context).width >= 900,
           subtitle: 'Manage your account, bookings\nand solar journey.',
         ),
       ),
